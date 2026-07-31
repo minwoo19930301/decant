@@ -323,7 +323,7 @@ test('dry-run validates verification opt-in and the planned call budget without 
     0,
   );
   assert.equal(executions, 0);
-  assert.match(output.read(), /Codex invocations: 5\.\.5/);
+  assert.match(output.read(), /Agent invocations: 5\.\.5/);
   assert.match(output.read(), /economy\/low -> economy-model/);
   assert.match(output.read(), /deterministic readers/);
   assert.doesNotMatch(output.read(), /undefined/);
