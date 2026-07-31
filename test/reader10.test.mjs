@@ -219,3 +219,36 @@ test('a real image without alt is still critical', () => {
     .filter((entry) => entry.severity === 'critical' && !entry.passed);
   assert.ok(critical.some((entry) => entry.id === 'alt'), 'a genuine bare <img> must fail');
 });
+
+test('an unterminated tag name in prose is not a tag', () => {
+  // The maker wrote, in plain prose: "Grepped index.html for http://, <img,
+  // fetch(, src= — no matches". The old pattern's attribute span crossed the
+  // rest of the line and consumed the `>` of the next closing tag, so the
+  // sentence became an image with no alt text and failed the run.
+  const shell = (body) => [
+    '<!doctype html><html lang="en"><head><title>t</title>',
+    '<meta name="viewport" content="width=device-width"></head><body><main>',
+    '<h1>Run report</h1><p>Summary: purpose, next steps, prerequisites,',
+    'failure handling, evidence at https://example.com</p>',
+    body,
+    '</main></body></html>',
+  ].join('\n');
+  const criticalCount = (html) => evaluateReader10(html, { task: 't', summary: 'Summary of t' })
+    .personas.flatMap((persona) => persona.checks)
+    .filter((entry) => entry.severity === 'critical' && !entry.passed).length;
+
+  assert.equal(
+    criticalCount(shell('<p>Grepped for <img, fetch(, src= with no closing bracket.</p>')),
+    0,
+    'prose mentioning a tag name must not be treated as markup',
+  );
+  assert.ok(
+    criticalCount(shell('<img src="chart.png">')) >= 1,
+    'a genuine bare image must still fail',
+  );
+  assert.equal(
+    criticalCount(shell('<img src="chart.png" alt="a chart">')),
+    0,
+    'a described image must pass',
+  );
+});
