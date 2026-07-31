@@ -16,6 +16,17 @@ Apply the approved change while keeping evidence and rollback obvious.
 
 Do not force test-first mechanics for generated artifacts, trivial text edits, or behavior that is better verified by a deterministic validator. Record why when no test is appropriate.
 
+## Hard-deadline progress gate
+
+Use this gate for explicitly time-boxed, low-risk work. For a budget of 15 minutes or less, treat it as a fast lane and recommend medium-or-lower host effort before starting. This skill cannot change the host model or effort and cannot enforce a wall-clock timer.
+
+1. Produce a runnable primary implementation vertical slice by 30% of the budget, capped at five minutes.
+2. Smoke-check that slice, then run the core tests.
+3. Expand behavior and documentation only after the slice works.
+4. Stop expansion at the final 20% and spend the remainder on verification and an honest handoff.
+
+Test-only, plan-only, and documentation-only output does not pass the first progress gate. Under a hard deadline, the runnable-slice sequence takes precedence over the general test-first preference above. Never apply this shortcut to security-sensitive, deployment, destructive, irreversible, or otherwise high-risk work, and do not weaken any applicable safety gate.
+
 ## Implementation loop
 
 1. Make one coherent change.

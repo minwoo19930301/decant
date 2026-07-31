@@ -39,8 +39,8 @@ Routing + invocation ceiling + a pluggable backend. Formerly Relay10.
 Usage:
   decant init [--force]
   decant doctor [--json]
-  decant route <task> [--json]
-  decant run <task> [--dry-run] [--live-readers] [--budget-calls N] [--allow-verification-commands]
+  decant route <task> [--json] [--lane auto|fast|full] [--time-budget-minutes N] [--first-artifact path]
+  decant run <task> [--dry-run] [--live-readers] [--budget-calls N] [--lane auto|fast|full] [--time-budget-minutes N] [--first-artifact path] [--allow-verification-commands]
   decant review <task> [--json] [--output file]
   decant inspect [run-id] [--json]
   decant report [run-id] [--output file]
@@ -88,7 +88,12 @@ const COMMAND_SPECS = Object.freeze({
   route: {
     minPositionals: 1,
     maxPositionals: Number.POSITIVE_INFINITY,
-    flags: { json: { key: 'json', type: BOOLEAN } },
+    flags: {
+      json: { key: 'json', type: BOOLEAN },
+      lane: { key: 'lane', type: VALUE },
+      'time-budget-minutes': { key: 'timeBudgetMinutes', type: VALUE },
+      'first-artifact': { key: 'firstArtifact', type: VALUE },
+    },
   },
   run: {
     minPositionals: 1,
@@ -97,6 +102,9 @@ const COMMAND_SPECS = Object.freeze({
       'dry-run': { key: 'dryRun', type: BOOLEAN },
       'live-readers': { key: 'liveReaders', type: BOOLEAN },
       'budget-calls': { key: 'budgetCalls', type: VALUE },
+      lane: { key: 'lane', type: VALUE },
+      'time-budget-minutes': { key: 'timeBudgetMinutes', type: VALUE },
+      'first-artifact': { key: 'firstArtifact', type: VALUE },
       'allow-verification-commands': { key: 'allowVerificationCommands', type: BOOLEAN },
     },
   },
@@ -200,7 +208,7 @@ export function parseCommandLine(argv) {
   return { command, positionals, flags };
 }
 
-function routeOptions(config) {
+function routeOptions(config, flags = {}) {
   return {
     balancedThreshold: config.routing?.balancedThreshold,
     frontierThreshold: config.routing?.frontierThreshold,
@@ -208,6 +216,9 @@ function routeOptions(config) {
     jurySize: 10,
     quorum: config.readerGate?.minPass ?? 9,
     maxRounds: config.readerGate?.maxRounds ?? 2,
+    lane: flags.lane,
+    timeBudgetMinutes: flags.timeBudgetMinutes,
+    firstArtifact: flags.firstArtifact,
   };
 }
 
@@ -252,13 +263,25 @@ function printRoute(plan, asJson, stdout) {
     return;
   }
   stdout.write(`Assessment: ${plan.assessment.role} (score ${plan.assessment.score})\n`);
+  if (plan.routingPolicy?.lane) {
+    const budget = plan.routingPolicy.timeBudgetMinutes === null
+      ? 'none'
+      : `${plan.routingPolicy.timeBudgetMinutes}m`;
+    stdout.write(`Lane: ${plan.routingPolicy.lane} (${plan.routingPolicy.reasonCode}; time budget ${budget})\n`);
+    if (plan.routingPolicy.firstArtifact) {
+      stdout.write(`First artifact: ${plan.routingPolicy.firstArtifact}\n`);
+    }
+  }
   stdout.write(`Dimensions: complexity=${plan.assessment.complexity}, risk=${plan.assessment.risk}, blast=${plan.assessment.blastRadius}, verifiability=${plan.assessment.verifiability}, reversibility=${plan.assessment.reversibility}\n`);
   for (const stage of plan.stages) {
     const state = stage.enabled === false
       ? 'skip'
       : stage.activation === 'conditional' ? 'conditional' : 'run';
     const capability = stage.capability ?? stage.modelRole ?? stage.profile ?? 'unassigned';
-    stdout.write(`- ${stage.id.padEnd(10)} ${state.padEnd(11)} ${capability}/${stage.effort} -> ${stage.model}\n`);
+    const effort = stage.requestedEffort && stage.requestedEffort !== stage.effort
+      ? `${stage.effort} (requested ${stage.requestedEffort}; ${stage.effortReason})`
+      : stage.effort;
+    stdout.write(`- ${stage.id.padEnd(10)} ${state.padEnd(11)} ${capability}/${effort} -> ${stage.model}\n`);
   }
   const readerMode = plan.callEstimate.readerMode ?? (plan.liveReaders ? 'live' : 'deterministic');
   stdout.write(`Agent invocations: ${plan.callEstimate.minimum}..${plan.callEstimate.maximum} (${readerMode} readers)\n`);
@@ -493,7 +516,7 @@ export async function main(argv = process.argv.slice(2), context = {}) {
     const task = positionals.join(' ').trim();
     const configAndCatalogImpl = context.configAndCatalogImpl ?? configAndCatalog;
     const { config, catalog } = await configAndCatalogImpl(cwd);
-    const route = routeTask(task, routeOptions(config));
+    const route = routeTask(task, routeOptions(config, flags));
     const liveReaders = Boolean(flags.liveReaders || config.readerGate?.mode === 'live');
     const pipeline = await pipelineModule(context.pipeline);
     const plan = pipeline.buildRunPlan({ task, route, catalog, config, liveReaders });

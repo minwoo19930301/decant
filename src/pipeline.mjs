@@ -1,8 +1,11 @@
 import {
   appendFile,
+  lstat,
   mkdir,
   open,
+  readFile,
   readdir,
+  realpath,
   rename,
   rmdir,
   stat,
@@ -10,6 +13,7 @@ import {
 } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
+import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
 
 import { mapPool, runVerification } from './executor.mjs';
@@ -36,6 +40,7 @@ const SCOUT_SCHEMA = fileURLToPath(new URL('../schema/scout-result.schema.json',
 export const REVIEWER_SCHEMA = fileURLToPath(new URL('../schema/reviewer-result.schema.json', import.meta.url));
 const READER_SCHEMA = fileURLToPath(new URL('../schema/reader-result.schema.json', import.meta.url));
 const RUN_ID_PATTERN = /^\d{8}T\d{9}Z-[A-Za-z0-9]{8}$/;
+const EFFORT_LEVELS = Object.freeze(['low', 'medium', 'high', 'xhigh', 'max', 'ultra']);
 
 const OUTPUTS = Object.freeze({
   scout: 'scout.json',
@@ -67,14 +72,38 @@ function roleSelection(catalog, role) {
   return selected;
 }
 
+function effortAtOrBelow(requested, cap, supported) {
+  if (!cap) return supported.length === 0 || supported.includes(requested) ? requested : null;
+  const requestedIndex = EFFORT_LEVELS.indexOf(requested);
+  const capIndex = EFFORT_LEVELS.indexOf(cap);
+  if (requestedIndex === -1 || capIndex === -1) {
+    throw new RangeError(`unknown effort level in cap: requested=${requested}, cap=${cap}`);
+  }
+  const desiredIndex = Math.min(requestedIndex, capIndex);
+  if (supported.length === 0) return EFFORT_LEVELS[desiredIndex];
+  const candidates = supported
+    .filter((effort) => EFFORT_LEVELS.indexOf(effort) >= 0 && EFFORT_LEVELS.indexOf(effort) <= desiredIndex)
+    .sort((left, right) => EFFORT_LEVELS.indexOf(right) - EFFORT_LEVELS.indexOf(left));
+  if (candidates.length === 0) {
+    throw new RangeError(`model ${supported.join(',')} has no effort at or below ${cap}`);
+  }
+  return candidates[0];
+}
+
 function stageSelection(stage, config, catalog) {
   const selected = roleSelection(catalog, stage.modelRole);
   const requested = config.effort?.[stage.id] ?? stage.effort ?? selected.effort;
   const supported = selected.supportedEfforts ?? [];
-  const effort = supported.length === 0 || supported.includes(requested)
-    ? requested
-    : selected.effort ?? supported[0];
-  return { ...selected, effort };
+  const capped = effortAtOrBelow(requested, stage.effortCap, supported);
+  const effort = capped ?? selected.effort ?? supported[0];
+  return {
+    ...selected,
+    effort,
+    ...(stage.effortCap ? {
+      requestedEffort: requested,
+      effortReason: effort !== requested ? stage.reasonCode ?? 'effort-cap' : null,
+    } : {}),
+  };
 }
 
 function stageInvocationBounds(stage) {
@@ -101,6 +130,9 @@ export function buildRunPlan({ task, route, catalog, config, liveReaders = false
   if (!route?.assessment || !Array.isArray(route?.stages)) {
     throw new TypeError('route must be a routeTask result');
   }
+  if (route.policy?.lane === 'fast' && liveReaders) {
+    throw new RangeError('live readers are not available in the fast lane; use deterministic readers or the full lane');
+  }
 
   const stages = route.stages.map((stage) => {
     const selection = stage.id === 'reader'
@@ -111,6 +143,10 @@ export function buildRunPlan({ task, route, catalog, config, liveReaders = false
       model: selection.model,
       effort: selection.effort,
       modelSource: selection.source ?? 'provided',
+      ...(selection.requestedEffort ? {
+        requestedEffort: selection.requestedEffort,
+        effortReason: selection.effortReason,
+      } : {}),
     };
   });
   const base = baseInvocationBounds(route);
@@ -874,6 +910,110 @@ export async function releaseWorkspaceLock({
   ));
 }
 
+function pathInside(parent, candidate) {
+  const relative = path.relative(parent, candidate);
+  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
+}
+
+async function nearestExistingPath(candidate) {
+  let current = candidate;
+  while (true) {
+    try {
+      await lstat(current);
+      return current;
+    } catch (error) {
+      if (error?.code !== 'ENOENT' && error?.code !== 'ENOTDIR') throw error;
+      const parent = path.dirname(current);
+      if (parent === current) throw error;
+      current = parent;
+    }
+  }
+}
+
+async function resolveFirstArtifact(root, relative) {
+  if (typeof relative !== 'string' || !relative.trim()) {
+    throw new TypeError('fast lane requires a non-empty first artifact path');
+  }
+  const normalized = relative.trim().replaceAll('\\', '/').replace(/^(?:\.\/)+/, '');
+  const internalSegment = normalized
+    .split('/')
+    .some((segment) => ['.git', '.decant', '.rein', '.relay10', 'node_modules'].includes(segment.toLowerCase()));
+  if (
+    path.isAbsolute(normalized)
+    || /^[a-z]:/i.test(normalized)
+    || normalized.includes('\0')
+    || normalized.split('/').includes('..')
+    || internalSegment
+  ) {
+    throw new TypeError('first artifact must be a workspace source path outside internal state directories');
+  }
+  const rootPhysical = await realpath(root);
+  const target = path.resolve(root, normalized);
+  if (!pathInside(root, target) || target === root) {
+    throw new TypeError('first artifact escapes the workspace');
+  }
+  const existing = await nearestExistingPath(target);
+  const existingPhysical = await realpath(existing);
+  if (!pathInside(rootPhysical, existingPhysical)) {
+    throw new TypeError('first artifact resolves outside the workspace');
+  }
+  return { relative: normalized.replace(/^\.\//, ''), target, rootPhysical };
+}
+
+async function artifactSnapshot(artifact) {
+  let details;
+  try {
+    details = await lstat(artifact.target);
+  } catch (error) {
+    if (error?.code === 'ENOENT' || error?.code === 'ENOTDIR') {
+      return { exists: false, sha256: null, bytes: 0 };
+    }
+    throw error;
+  }
+  if (details.isSymbolicLink()) throw new TypeError('first artifact cannot be a symbolic link');
+  if (!details.isFile()) throw new TypeError('first artifact must resolve to a regular file');
+  const physical = await realpath(artifact.target);
+  if (!pathInside(artifact.rootPhysical, physical)) {
+    throw new TypeError('first artifact resolves outside the workspace');
+  }
+  const content = await readFile(artifact.target);
+  return { exists: true, sha256: sha256(content), bytes: content.byteLength };
+}
+
+function deterministicFastScout(task, firstArtifact) {
+  return {
+    summary: 'Fast lane starts with the implementation stage instead of spending a model call on a separate scout.',
+    facts: [
+      `The requested task is: ${task}`,
+      `The declared primary artifact is ${firstArtifact}.`,
+    ],
+    evidence: [{
+      title: 'Fast-lane routing contract',
+      url: 'run.json',
+      excerpt: 'The route records the time budget, skipped stages, effort cap, and first-artifact gate.',
+    }],
+    open_questions: [],
+  };
+}
+
+function deterministicFastSummary({ task, makerOutput, verification, reviewer, firstArtifact }) {
+  const verdict = reviewer?.verdict ?? 'uncertain';
+  const verificationStatus = verification?.status ?? 'unverified';
+  return `# Fast-lane run: 결과 요약
+
+## 요청과 결과
+
+요청 목적은 ${task} 입니다. 구현 단계는 ${firstArtifact} 파일의 실제 내용 변경을 남겼습니다. 구현 기록은 다음과 같습니다: ${makerOutput}
+
+## 검증 근거
+
+첫 산출물 변경 게이트는 통과했습니다. 결정론적 검증 상태는 ${verificationStatus}이고, 정확성 검토 판정은 ${verdict}입니다. 이 두 신호는 서로 대체하지 않습니다.
+
+## 다음 단계와 실패 안내
+
+다음 단계는 report.html과 verification.json에서 근거를 확인하는 것입니다. 검증이 실패했거나 실행되지 않았다면 변경을 완료로 간주하지 말고 오류 출력과 reviewer.json을 확인하세요.`;
+}
+
 export async function runPipeline({
   task,
   cwd = process.cwd(),
@@ -887,6 +1027,7 @@ export async function runPipeline({
   runCodexImpl,
   runVerificationImpl = runVerification,
   now = () => new Date(),
+  monotonicNow = () => performance.now(),
   idFactory,
 } = {}) {
   // The pipeline never names a CLI. It resolves whichever provider the config
@@ -905,6 +1046,43 @@ export async function runPipeline({
     budgetCalls,
     allowVerificationCommands,
   });
+  const startedMonotonicMs = Number(monotonicNow());
+  if (!Number.isFinite(startedMonotonicMs)) throw new TypeError('monotonicNow must return a finite number');
+  const timeBudgetMinutes = plan.routingPolicy?.timeBudgetMinutes ?? null;
+  const timeBudgetMs = timeBudgetMinutes === null ? null : timeBudgetMinutes * 60_000;
+  const deadlineMonotonicMs = timeBudgetMs === null ? null : startedMonotonicMs + timeBudgetMs;
+  const fastLane = plan.routingPolicy?.lane === 'fast';
+  const firstArtifactWindowMs = fastLane
+    ? Math.min(
+      Math.floor(timeBudgetMs * (plan.routingPolicy.firstArtifactRatio ?? 0.3)),
+      plan.routingPolicy.firstArtifactMaxMs ?? 300_000,
+    )
+    : null;
+  const firstArtifactDeadlineMs = fastLane ? startedMonotonicMs + firstArtifactWindowMs : null;
+  const firstArtifact = fastLane
+    ? await resolveFirstArtifact(root, plan.routingPolicy.firstArtifact)
+    : null;
+  const firstArtifactBefore = fastLane ? await artifactSnapshot(firstArtifact) : null;
+
+  function currentMonotonicMs() {
+    const value = Number(monotonicNow());
+    if (!Number.isFinite(value)) throw new TypeError('monotonicNow must return a finite number');
+    if (value < startedMonotonicMs) throw new Error('monotonic clock moved backwards');
+    return value;
+  }
+
+  function boundedTimeout(configuredMs, label, { firstArtifactGate = false } = {}) {
+    let timeoutMs = configuredMs;
+    const current = currentMonotonicMs();
+    if (deadlineMonotonicMs !== null) timeoutMs = Math.min(timeoutMs, deadlineMonotonicMs - current);
+    if (firstArtifactGate) timeoutMs = Math.min(timeoutMs, firstArtifactDeadlineMs - current);
+    if (!Number.isFinite(timeoutMs) || timeoutMs < 1) {
+      const error = new Error(`run time budget exhausted before ${label}`);
+      error.code = 'DPR_TIME_BUDGET_EXHAUSTED';
+      throw error;
+    }
+    return Math.max(1, Math.floor(timeoutMs));
+  }
   const clock = () => {
     const value = now();
     return (value instanceof Date ? value : new Date(value)).toISOString();
@@ -947,10 +1125,18 @@ export async function runPipeline({
     invocationEstimate: plan.invocationEstimate,
     invocations: { used: 0, budget },
     calls: { used: 0, budget, unit: `${activeProvider.id}-stage-invocations` },
+    timeBudget: timeBudgetMs === null ? null : {
+      minutes: timeBudgetMinutes,
+      milliseconds: timeBudgetMs,
+      firstArtifactWindowMs,
+      unit: 'wall-clock',
+    },
     routing: plan.stages.map((stage) => ({
       stage: stage.id,
       profile: stage.modelRole,
       effort: stage.effort,
+      requestedEffort: stage.requestedEffort ?? stage.effort,
+      effortReason: stage.effortReason ?? null,
       model: stage.model,
       enabled: stage.enabled !== false,
       activation: stage.activation ?? (stage.enabled === false ? 'never' : 'always'),
@@ -1004,6 +1190,31 @@ export async function runPipeline({
     return stage;
   }
 
+  async function recordFirstArtifactGate({ makerError = null } = {}) {
+    if (!fastLane) return null;
+    const after = await artifactSnapshot(firstArtifact);
+    const changed = after.exists
+      && after.bytes > 0
+      && after.sha256 !== firstArtifactBefore.sha256;
+    const passed = makerError === null && changed;
+    const gate = {
+      passed,
+      path: firstArtifact.relative,
+      before: firstArtifactBefore,
+      after,
+      deadlineMs: firstArtifactWindowMs,
+      reason: makerError
+        ? `maker failed before the first-artifact gate: ${makerError.message}`
+        : changed
+          ? 'declared primary artifact changed and is non-empty'
+          : 'declared primary artifact is missing, empty, or unchanged',
+    };
+    manifest.gates.firstArtifact = gate;
+    await recordEvent(passed ? 'gate.first-artifact.passed' : 'gate.first-artifact.failed', gate);
+    await persist();
+    return gate;
+  }
+
   async function invokeStage(id, {
     prompt,
     outputFile,
@@ -1014,10 +1225,13 @@ export async function runPipeline({
   }) {
     const stage = stageContract(id);
     if (stage.enabled === false) return null;
-    consumeInvocation(stageId);
-    await recordEvent('stage.started', { stage: stageId, model: stage.model, effort: stage.effort });
     const started = Date.now();
     try {
+      const timeoutMs = boundedTimeout(config.limits.stageTimeoutMs, stageId, {
+        firstArtifactGate: fastLane && stageId === 'maker',
+      });
+      consumeInvocation(stageId);
+      await recordEvent('stage.started', { stage: stageId, model: stage.model, effort: stage.effort, timeoutMs });
       const result = await runStageImpl({
         prompt,
         cwd: root,
@@ -1027,7 +1241,7 @@ export async function runPipeline({
         search,
         outputFile,
         outputSchema,
-        timeoutMs: config.limits.stageTimeoutMs,
+        timeoutMs,
       });
       const output = await readText(outputFile);
       if (!output.trim()) throw new Error(`${stageId} produced an empty output`);
@@ -1045,6 +1259,7 @@ export async function runPipeline({
       await recordEvent('stage.completed', { stage: stageId, durationMs: manifest.stages[stageId].durationMs });
       return { result, output };
     } catch (error) {
+      const timedOut = error?.result?.timedOut === true;
       manifest.stages[stageId] = {
         id: stageId,
         title: stage.purpose,
@@ -1055,8 +1270,9 @@ export async function runPipeline({
         effort: stage.effort,
         durationMs: Date.now() - started,
         output: error.message,
+        timedOut,
       };
-      await recordEvent('stage.failed', { stage: stageId, error: error.message });
+      await recordEvent('stage.failed', { stage: stageId, error: error.message, timedOut });
       throw error;
     }
   }
@@ -1074,12 +1290,24 @@ export async function runPipeline({
     await recordEvent('run.started', { task: plan.task });
 
     const scoutFile = path.join(runDir, OUTPUTS.scout);
-    await invokeStage('scout', {
-      prompt: scoutPrompt(plan.task, runDir),
-      outputFile: scoutFile,
-      outputSchema: SCOUT_SCHEMA,
-      search: true,
-    });
+    const scoutContract = stageContract('scout');
+    if (scoutContract.enabled === false) {
+      const syntheticScout = deterministicFastScout(plan.task, firstArtifact.relative);
+      await writeJson(scoutFile, syntheticScout);
+      manifest.stages.scout = {
+        id: 'scout', title: scoutContract.purpose, status: 'skipped', enabled: false,
+        profile: scoutContract.modelRole, model: scoutContract.model, effort: scoutContract.effort,
+        output: JSON.stringify(syntheticScout, null, 2),
+      };
+      await recordEvent('stage.skipped', { stage: 'scout', reasonCode: 'deadline-fast-lane' });
+    } else {
+      await invokeStage('scout', {
+        prompt: scoutPrompt(plan.task, runDir),
+        outputFile: scoutFile,
+        outputSchema: SCOUT_SCHEMA,
+        search: true,
+      });
+    }
     const scout = assertScout(await readJson(scoutFile));
     manifest.evidence = scout.evidence;
     await persist();
@@ -1143,11 +1371,24 @@ export async function runPipeline({
       };
       await recordEvent('stage.skipped', { stage: 'maker', reason });
     } else {
-      await invokeStage('maker', {
-        prompt: makerPrompt(plan.task, runDir),
-        outputFile: makerFile,
-        sandbox: 'workspace-write',
-      });
+      try {
+        await invokeStage('maker', {
+          prompt: makerPrompt(plan.task, runDir, fastLane ? {
+            fastLane: true,
+            firstArtifact: firstArtifact.relative,
+            firstArtifactDeadlineMs: firstArtifactWindowMs,
+          } : {}),
+          outputFile: makerFile,
+          sandbox: 'workspace-write',
+        });
+      } catch (error) {
+        await recordFirstArtifactGate({ makerError: error });
+        throw error;
+      }
+      const firstArtifactGate = await recordFirstArtifactGate();
+      if (firstArtifactGate && !firstArtifactGate.passed) {
+        throw new Error(`first artifact did not change: ${firstArtifact.relative}`);
+      }
     }
 
     const verificationFile = path.join(runDir, OUTPUTS.verification);
@@ -1183,7 +1424,7 @@ export async function runPipeline({
         try {
           result = await runVerificationImpl(command, {
             cwd: root,
-            timeoutMs: config.limits.commandTimeoutMs,
+            timeoutMs: boundedTimeout(config.limits.commandTimeoutMs, `verification command ${index + 1}`),
           });
         } catch (error) {
           result = {
@@ -1261,7 +1502,15 @@ export async function runPipeline({
     const summaryFile = path.join(runDir, OUTPUTS.explainer);
     let summary;
     if (explainer.enabled === false) {
-      summary = 'SKIPPED: model-generated explanation was disabled.';
+      summary = fastLane
+        ? deterministicFastSummary({
+          task: plan.task,
+          makerOutput: manifest.stages.maker?.output ?? 'No maker output was recorded.',
+          verification,
+          reviewer: reviewerResult,
+          firstArtifact: firstArtifact.relative,
+        })
+        : 'SKIPPED: model-generated explanation was disabled.';
       await writeText(summaryFile, summary);
       manifest.stages.explainer = {
         id: 'explainer', title: explainer.purpose, status: 'skipped', enabled: false,
@@ -1364,7 +1613,7 @@ export async function runPipeline({
                 sandbox: 'read-only',
                 outputFile,
                 outputSchema: READER_SCHEMA,
-                timeoutMs: config.limits.stageTimeoutMs,
+                timeoutMs: boundedTimeout(config.limits.stageTimeoutMs, `reader ${round}-${persona.id}`),
               });
               const raw = assertLiveReader(await readJson(outputFile));
               await recordEvent('reader.completed', {
@@ -1512,8 +1761,15 @@ export async function runPipeline({
   } catch (error) {
     if (runCreated) {
       manifest.status = 'error';
-      manifest.error = { name: error.name, message: error.message };
+      manifest.error = {
+        name: error.name,
+        message: error.message,
+        ...(typeof error.code === 'string' ? { code: error.code } : {}),
+      };
       try {
+        if (error?.code === 'DPR_TIME_BUDGET_EXHAUSTED') {
+          await recordEvent('run.deadline.exhausted', { error: error.message });
+        }
         await recordEvent('run.failed', { error: error.message });
         await writeQueue;
         await persist();
