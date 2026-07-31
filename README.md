@@ -97,11 +97,23 @@ a task this size; `--budget-calls` is what stops it being more.
 No token or currency figure, because Decant cannot see either. Your provider's
 dashboard can.
 
-And does the harness actually beat not using it? On one measured task — build a
-small flamingo game — **it tied on every stated requirement, took 3.9x longer,
-and used 5x the model calls.** The one thing it added was a reviewer finding that
-caught a real defect both versions shipped. Full numbers, including the parts
-that do not flatter it: [docs/ab-flamingo.md](docs/ab-flamingo.md).
+And does the harness actually beat not using it? Three measured runs say **it
+depends entirely on task size**, and two of the three do not favour it:
+
+| task | harness | without |
+|---|---:|---:|
+| tight 10-minute spec | **0/100** | 70/100 |
+| small browser game | 13/13 reqs, 305 s | 13/13 reqs, 78 s |
+| larger 40-minute build | **100/100** | 90/100, at 1/5 the tokens |
+
+On the short task the harness wrote a 145-line test file and never created the
+source modules it imported. That failure is what the `--lane fast` vertical-slice
+gate exists to stop. Full numbers, methodology, and what none of it establishes:
+[docs/benchmarks.md](docs/benchmarks.md).
+
+**Do not use the pipeline for small tasks.** For large ones, decide whether the
+quality difference is worth roughly five times the tokens. In between,
+`decant review` costs one call.
 
 ---
 
@@ -348,7 +360,8 @@ In Claude Code:
 
 ## More detail
 
-- [A/B: with and without the harness](docs/ab-flamingo.md) — measured, including where it lost
+- [Benchmarks](docs/benchmarks.md) — three measured runs, two of which the harness lost
+- [A/B: with and without the harness](docs/ab-flamingo.md) — the flamingo run in detail
 - [Limits](docs/limits.md) — every claim this tool does not make
 - [Architecture](docs/architecture.md) — stage contracts, the provider
   interface, and what is deliberately missing
