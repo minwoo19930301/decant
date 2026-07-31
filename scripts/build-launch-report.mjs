@@ -3,11 +3,20 @@ import path from 'node:path';
 
 import { evaluateReader10, evaluateReader10Payload } from '../src/reader10.mjs';
 import { generateReport } from '../src/report.mjs';
+import { describeTarget, evidenceTarget } from './frozen-evidence.mjs';
 
 const root = path.resolve(new URL('..', import.meta.url).pathname);
 const outputs = path.join(root, 'outputs');
+// Resolve frozen-evidence targets up front so an unsatisfied --freeze guard
+// fails before the report is rendered.
+const reportDestination = evidenceTarget(root, 'docs/launch-report.html');
+const deterministicDestination = evidenceTarget(root, 'docs/launch-reader-deterministic.json');
 await mkdir(outputs, { recursive: true });
 
+// Deliberately the pre-rename URL: this script must keep reproducing the exact
+// bytes of the released v0.1.1 docs/launch-report.html, whose recorded
+// reportSha256 binding would break if any embedded string changed. GitHub
+// redirects the old path to minwoo19930301/rein.
 const repository = 'https://github.com/minwoo19930301/relay10';
 const releaseTarget = `${repository}/releases/tag/v0.1.1`;
 const verificationLog = JSON.parse(await readFile(path.join(root, 'docs', 'launch-verification.json'), 'utf8'));
@@ -377,11 +386,19 @@ const deterministicAudit = {
   payloadGate,
   renderAudit,
 };
-await writeFile(path.join(root, 'docs', 'launch-report.html'), final, 'utf8');
+// docs/launch-report.html and docs/launch-reader-deterministic.json are frozen
+// v0.1.1 Relay10 evidence: launch-reader-live.json records a reportSha256 bound
+// to the exact bytes of the HTML. Regenerating in place breaks that binding, so
+// the shared guard writes to outputs/ unless --freeze and
+// REIN_ALLOW_FROZEN_OVERWRITE=1 are both supplied. Regenerating into outputs/
+// is the safe way to check that this script still reproduces the released
+// artifact: compare hashes instead of overwriting it.
+await writeFile(reportDestination.target, final, 'utf8');
 await writeFile(
-  path.join(root, 'docs', 'launch-reader-deterministic.json'),
+  deterministicDestination.target,
   `${JSON.stringify(deterministicAudit, null, 2)}\n`,
   'utf8',
 );
 await writeFile(path.join(outputs, 'relay10-launch-report.html'), final, 'utf8');
 process.stdout.write(`launch report: payload ${payloadGate.passedPersonas}/10, render ${renderAudit.passedPersonas}/10, ${renderAudit.criticalCount} critical\n`);
+process.stdout.write(`report: ${describeTarget(root, reportDestination)}\nreader log: ${describeTarget(root, deterministicDestination)}\n`);

@@ -23,9 +23,17 @@
   through the Codex CLI only (there is no executor abstraction), and generated
   reports plus the Reader-10 clarity heuristics are Korean-language.
 - Preserve the `v0.1.1` Relay10 launch evidence verbatim:
-  `docs/launch-report.html`, `docs/launch-verification.json`,
-  `docs/launch-reader-*.json`, and their generator/auditor scripts keep the
-  Relay10 names so their recorded `reportSha256` bindings still verify.
+  `docs/launch-report.html`, `docs/launch-verification.json`, and
+  `docs/launch-reader-*.json` keep their released bytes, and the generator and
+  auditor scripts keep the Relay10 strings they embed, so the recorded
+  `reportSha256` binding still verifies.
+- Protect that evidence from its own tooling. `verify:launch`,
+  `report:launch`, and `audit:launch` used to overwrite the released artifacts
+  in place, which silently replaced them with a fresh — and, without Codex on
+  `PATH`, failing — log. All three now write to the gitignored `outputs/`
+  directory through `scripts/frozen-evidence.mjs`. Overwriting the archive
+  requires both `--freeze` and `REIN_ALLOW_FROZEN_OVERWRITE=1`, is refused
+  before any work starts, and is covered by tests.
 
 - Gate the frontier architect after scout evidence for economy-tier work while
   preserving always/never controls and the existing artifact contract.
