@@ -158,9 +158,9 @@ function renderRouting(routing) {
 function renderHarnessComparison(comparison) {
   const rows = normalizeList(comparison);
   if (!rows.length) return '<p class="muted">하네스 비교 기록이 없습니다.</p>';
-  return `<div class="table-wrap" tabindex="0" role="region" aria-label="하네스 장단점과 Rein 체리피킹 표">
+  return `<div class="table-wrap" tabindex="0" role="region" aria-label="하네스 장단점과 Decant 체리피킹 표">
     <table class="wide-table">
-      <thead><tr><th scope="col">하네스</th><th scope="col">장점</th><th scope="col">단점</th><th scope="col">Rein이 채택한 패턴</th><th scope="col">의도적으로 제외한 부분</th></tr></thead>
+      <thead><tr><th scope="col">하네스</th><th scope="col">장점</th><th scope="col">단점</th><th scope="col">Decant이 채택한 패턴</th><th scope="col">의도적으로 제외한 부분</th></tr></thead>
       <tbody>${rows.map((row, index) => {
         const item = row && typeof row === 'object' ? row : { name: row };
         return `<tr>
@@ -199,7 +199,7 @@ function renderGlobalRepos(repositories) {
   if (!rows.length) return '<p class="muted">글로벌 저장소 조사 기록이 없습니다.</p>';
   return `<div class="table-wrap" tabindex="0" role="region" aria-label="글로벌 상위 저장소 증류 표">
     <table class="wide-table">
-      <thead><tr><th scope="col">프로젝트</th><th scope="col">현재 신호</th><th scope="col">강점</th><th scope="col">약점·주의</th><th scope="col">Rein 채택</th><th scope="col">Rein 제외</th></tr></thead>
+      <thead><tr><th scope="col">프로젝트</th><th scope="col">현재 신호</th><th scope="col">강점</th><th scope="col">약점·주의</th><th scope="col">Decant 채택</th><th scope="col">Decant 제외</th></tr></thead>
       <tbody>${rows.map((row, index) => {
         const item = row && typeof row === 'object' ? row : { name: row };
         const rawUrl = item.url ?? item.repository;
@@ -222,7 +222,7 @@ function renderGlobalRepos(repositories) {
 function renderSkillPack(skills) {
   const rows = normalizeList(skills);
   if (!rows.length) return '<p class="muted">Skill pack 기록이 없습니다.</p>';
-  return `<div class="table-wrap" tabindex="0" role="region" aria-label="Rein Skill pack 표">
+  return `<div class="table-wrap" tabindex="0" role="region" aria-label="Decant Skill pack 표">
     <table class="support-table">
       <thead><tr><th scope="col">Skill</th><th scope="col">한 가지 일</th><th scope="col">증류한 패턴</th><th scope="col">경계</th><th scope="col">현재 상태</th></tr></thead>
       <tbody>${rows.map((row, index) => {
@@ -374,7 +374,7 @@ function renderNextSteps(nextSteps) {
  * Every value supplied by the caller is escaped; stage output is never trusted as HTML.
  */
 export function generateReport(data = {}, options = {}) {
-  const title = data.title ?? options.title ?? 'Rein 실행 보고서';
+  const title = data.title ?? options.title ?? 'Decant 실행 보고서';
   const summary = data.summary ?? data.resultSummary ?? '요약이 아직 기록되지 않았습니다.';
   const heroSummary = data.heroSummary ?? summary;
   const task = data.task ?? data.request ?? data.goal ?? '요청 내용이 기록되지 않았습니다.';
@@ -473,7 +473,7 @@ export function generateReport(data = {}, options = {}) {
   <a class="skip-link" href="#main">본문으로 건너뛰기</a>
   <header class="hero">
     <div class="shell">
-      <p class="eyebrow">Rein · 실행 보고서</p>
+      <p class="eyebrow">Decant · 실행 보고서</p>
       <h1>${escapeHtml(title)}</h1>
       <div class="hero-summary"><strong>핵심 요약:</strong> ${escapeHtml(heroSummary)}</div>
       <div class="meta">${statusBadge(overallStatus)}<span>실행 ID ${escapeHtml(runId)}</span><time datetime="${escapeHtml(generatedAt)}">생성 ${escapeHtml(generatedAt)}</time></div>
@@ -486,8 +486,8 @@ export function generateReport(data = {}, options = {}) {
     <section id="overview" aria-labelledby="overview-title"><p class="eyebrow">01 · 한눈에 보기</p><h2 id="overview-title">목적과 결과 요약</h2><p class="muted"><strong>용어:</strong> CLI(명령줄 인터페이스), HTML(웹 문서 형식), ID(식별자), PASS(통과), FAIL(실패).</p><h3>요청 목적</h3>${renderText(task, 'lede')}<h3>최종 결과</h3>${renderText(summary, 'lede')}${renderKeyValue({ 실행상태: STATUS_LABELS[normalizeStatus(overallStatus)], 실행ID: runId, 생성시각: generatedAt })}</section>
     <section id="routing" aria-labelledby="routing-title"><p class="eyebrow">02 · 의사결정</p><h2 id="routing-title">모델 라우팅</h2><p>실행 전에 정한 프로필과 실제 실행 여부입니다. 프로필은 카탈로그 메타데이터 기반 역할이며 가격이나 성능 순위를 보장하지 않습니다.</p>${renderRouting(data.routing)}</section>
     ${hasGlobalRepos ? `<section id="global" aria-labelledby="global-title"><p class="eyebrow">글로벌 · 2026-07-14 스냅샷</p><h2 id="global-title">글로벌 상위 저장소에서 무엇을 증류했나</h2>${renderText(data.globalSummary ?? '별 수는 인기와 발견 신호일 뿐 품질, 사용량, 성능을 증명하지 않습니다. 현재성, 구조, 테스트, 라이선스를 함께 봤습니다.')} ${renderGlobalRepos(globalRepos)}</section>` : ''}
-    ${hasSkillPack ? `<section id="skills" aria-labelledby="skills-title"><p class="eyebrow">Skill · progressive disclosure</p><h2 id="skills-title">여덟 개만 남긴 Rein Skill pack</h2>${renderText(data.skillSummary ?? 'Skill은 한 가지 일을 맡고 필요할 때만 로드됩니다. Plugin은 이 Skill들을 배포하는 묶음이며 현재 task 모델을 바꾸지 않습니다. 스킬 id는 당분간 rein-* 레거시 이름을 유지합니다.')} ${renderSkillPack(skillPack)}</section>` : ''}
-    ${hasComparisons ? `<section id="comparison" aria-labelledby="comparison-title"><p class="eyebrow">비교 · 설계 계보</p><h2 id="comparison-title">하네스별 장단점과 Rein 체리피킹</h2>${renderText(data.comparisonSummary ?? 'Rein(구 Relay10)은 비교 대상의 코드를 복사하지 않고, 검증 가능한 동작 패턴만 선택적으로 독립 구현했습니다.')} ${renderHarnessComparison(comparisons)}</section>` : ''}
+    ${hasSkillPack ? `<section id="skills" aria-labelledby="skills-title"><p class="eyebrow">Skill · progressive disclosure</p><h2 id="skills-title">여덟 개만 남긴 Decant Skill pack</h2>${renderText(data.skillSummary ?? 'Skill은 한 가지 일을 맡고 필요할 때만 로드됩니다. Plugin은 이 Skill들을 배포하는 묶음이며 현재 task 모델을 바꾸지 않습니다. 스킬 id는 당분간 decant-* 레거시 이름을 유지합니다.')} ${renderSkillPack(skillPack)}</section>` : ''}
+    ${hasComparisons ? `<section id="comparison" aria-labelledby="comparison-title"><p class="eyebrow">비교 · 설계 계보</p><h2 id="comparison-title">하네스별 장단점과 Decant 체리피킹</h2>${renderText(data.comparisonSummary ?? 'Decant(구 Relay10)은 비교 대상의 코드를 복사하지 않고, 검증 가능한 동작 패턴만 선택적으로 독립 구현했습니다.')} ${renderHarnessComparison(comparisons)}</section>` : ''}
     ${hasSupportMatrix ? `<section id="support" aria-labelledby="support-title"><p class="eyebrow">지원 · 이식성</p><h2 id="support-title">현재 공급자·CLI·앱 지원 범위</h2>${renderText(data.supportSummary ?? '현재 작동하는 범위와 향후 구현 가능한 범위를 구분합니다.')} ${renderSupportMatrix(supportMatrix)}</section>` : ''}
     ${hasGrowthPlan ? `<section id="growth" aria-labelledby="growth-title"><p class="eyebrow">발전 · 증거 중심 홍보</p><h2 id="growth-title">앞으로 30일·60일·90일에 할 일</h2>${renderText(data.growthSummary ?? '기능 수보다 재현 가능한 성공 사례, 실패 공개, 사용자 유지율을 우선합니다.')} ${renderGrowthPlan(growthPlan)}</section>` : ''}
     <section id="stages" aria-labelledby="stages-title"><p class="eyebrow">03 · 작업 기록</p><h2 id="stages-title">단계별 출력</h2>${renderStages(data)}</section>
@@ -496,7 +496,7 @@ export function generateReport(data = {}, options = {}) {
     <section id="evidence" aria-labelledby="evidence-title"><p class="eyebrow">06 · 추적 가능성</p><h2 id="evidence-title">근거와 출처</h2>${renderEvidence(evidence)}</section>
     <section id="actions" aria-labelledby="actions-title"><p class="eyebrow">07 · 실행 안내</p><h2 id="actions-title">다음 단계</h2><p>필요한 조치를 순서대로 실행하고, 문제가 생기면 검증 결과의 오류 또는 대안 기록을 먼저 확인하세요.</p>${renderNextSteps(nextSteps)}</section>
   </main>
-  <footer class="shell"><p>이 파일은 외부 스크립트나 스타일시트 없이 생성된 자체 포함 Rein 보고서입니다.</p></footer>
+  <footer class="shell"><p>이 파일은 외부 스크립트나 스타일시트 없이 생성된 자체 포함 Decant 보고서입니다.</p></footer>
 </body>
 </html>`;
 }

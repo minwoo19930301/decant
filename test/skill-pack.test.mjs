@@ -20,8 +20,8 @@ function captureOutput() {
 }
 
 async function writeFixture(overrides = {}) {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'rein-skill-pack-'));
-  const skillName = overrides.skillName ?? 'rein-example';
+  const root = await mkdtemp(path.join(os.tmpdir(), 'decant-skill-pack-'));
+  const skillName = overrides.skillName ?? 'decant-example';
   const skillRoot = path.join(root, 'skills', skillName);
   await mkdir(path.join(root, '.codex-plugin'), { recursive: true });
   await mkdir(path.join(root, '.claude-plugin'), { recursive: true });
@@ -29,7 +29,7 @@ async function writeFixture(overrides = {}) {
   await mkdir(path.join(skillRoot, 'references'), { recursive: true });
 
   const manifest = {
-    name: 'rein',
+    name: 'decant',
     version: '0.1.1',
     description: 'A focused workflow skill pack.',
     author: { name: 'Relay10 contributors' },
@@ -52,7 +52,7 @@ async function writeFixture(overrides = {}) {
   );
   if (overrides.claudeManifest !== false) {
     const claudeManifest = {
-      name: 'rein',
+      name: 'decant',
       version: '0.1.1',
       description: 'A focused workflow skill pack.',
       author: { name: 'Relay10 contributors' },
@@ -83,9 +83,9 @@ async function writeFixture(overrides = {}) {
 }
 
 test('small YAML parser extracts quoted nested interface values', () => {
-  const result = parseYamlScalars(`interface:\n  display_name: "Relay10 Build"\n  default_prompt: 'Use $rein-build now.'\n`);
+  const result = parseYamlScalars(`interface:\n  display_name: "Relay10 Build"\n  default_prompt: 'Use $decant-build now.'\n`);
   assert.equal(result.get('interface.display_name'), 'Relay10 Build');
-  assert.equal(result.get('interface.default_prompt'), 'Use $rein-build now.');
+  assert.equal(result.get('interface.default_prompt'), 'Use $decant-build now.');
 });
 
 test('small YAML parser rejects malformed syntax instead of silently accepting it', () => {
@@ -95,7 +95,7 @@ test('small YAML parser rejects malformed syntax instead of silently accepting i
     ['duplicate key', 'interface:\n  display_name: First\n  display_name: Second\n'],
     ['odd indentation', 'interface:\n   display_name: Relay10 Build\n'],
     ['indentation jump', 'interface:\n    display_name: Relay10 Build\n'],
-    ['flow scalar', 'name: [rein-build]\n'],
+    ['flow scalar', 'name: [decant-build]\n'],
   ];
 
   for (const [label, source] of malformed) {
@@ -109,8 +109,8 @@ test('small YAML parser rejects malformed syntax instead of silently accepting i
 
 test('validator returns itemized YAML errors for malformed skill and agent metadata', async () => {
   const root = await writeFixture({
-    skill: `---\nname: rein-example\ndescription: [unfinished\n---\n\n# Example\n`,
-    agent: `interface:\n  display_name: "Relay10 Example\n  short_description: "Run a bounded and verified example workflow"\n  default_prompt: "Use $rein-example to verify this workflow."\n`,
+    skill: `---\nname: decant-example\ndescription: [unfinished\n---\n\n# Example\n`,
+    agent: `interface:\n  display_name: "Relay10 Example\n  short_description: "Run a bounded and verified example workflow"\n  default_prompt: "Use $decant-example to verify this workflow."\n`,
   });
   const result = await validateSkillPack(root);
 
@@ -205,7 +205,7 @@ test('repository marketplace manifest points at the bundled plugin with a matchi
     'utf8',
   ));
 
-  assert.equal(marketplace.name, 'rein');
+  assert.equal(marketplace.name, 'decant');
   assert.ok(marketplace.owner?.name, 'marketplace owner.name is required');
   assert.ok(Array.isArray(marketplace.plugins) && marketplace.plugins.length > 0);
   for (const entry of marketplace.plugins) {
@@ -237,9 +237,9 @@ test('CLI help is side-effect free and JSON failure returns a nonzero status wit
   assert.equal(stderr.read(), '');
 });
 
-test('repository Rein plugin and all bundled skills pass the static validator', async () => {
+test('repository Decant plugin and all bundled skills pass the static validator', async () => {
   const repositoryRoot = path.resolve(new URL('..', import.meta.url).pathname);
-  const result = await validateSkillPack(path.join(repositoryRoot, 'plugins', 'rein'));
+  const result = await validateSkillPack(path.join(repositoryRoot, 'plugins', 'decant'));
   assert.equal(result.passed, true, JSON.stringify(result.errors, null, 2));
   assert.ok(result.skillCount >= 8);
 });

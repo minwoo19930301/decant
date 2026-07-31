@@ -1,4 +1,0 @@
-interface:
-  display_name: "Rein Orchestrate"
-  short_description: "Route a task through the smallest safe workflow"
-  default_prompt: "Use $rein-orchestrate to route this repository task without adding unnecessary stages."

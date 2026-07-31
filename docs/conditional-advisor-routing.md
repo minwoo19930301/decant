@@ -5,14 +5,14 @@ Evidence snapshot: 2026-07-14.
 
 ## Decision
 
-Rein keeps a cheap evidence-gathering stage first and spends the frontier
+Decant keeps a cheap evidence-gathering stage first and spends the frontier
 architect invocation only when the task or the gathered evidence justifies it.
 The default `routing.advisorMode` is `conditional`:
 
 1. The deterministic five-dimension assessment runs before any model call.
 2. `scout` reads the workspace and writes `scout.json` with evidence and
    `open_questions`.
-3. For an economy-tier task with no open questions, Rein writes a
+3. For an economy-tier task with no open questions, Decant writes a
    deterministic `architect.md` skip record and proceeds without a frontier
    architect call.
 4. If the initial assessment is balanced/frontier, or an economy scout records
@@ -90,7 +90,7 @@ not as a routing rule. Its Coding Agent Index v1.1 covers 321 tasks across
 DeepSWE, Terminal-Bench v2, and SWE-Atlas-QnA with three repeats. Each public row
 is a model plus agent harness and settings, not a model in isolation. The cost
 axis represents API-token estimates for the benchmark configuration and does
-not include engineering, supervision, recovery, or subscription costs. Rein
+not include engineering, supervision, recovery, or subscription costs. Decant
 therefore does not convert a plotted score or dollar position into an automatic
 model threshold. The screenshot's roughly $0–$4,000 scale also appears to be
 the 321-task aggregate, inferred by multiplying Artificial Analysis's average
@@ -106,17 +106,17 @@ References for the graph:
 - [Artificial Analysis Coding Agent Index](https://artificialanalysis.ai/agents/coding-agents/)
 - [OpenAI GPT-5.6 launch results](https://openai.com/index/gpt-5-6/)
 
-## What Rein cherry-picks
+## What Decant cherry-picks
 
-| Observed pattern | Rein expression | Reason |
+| Observed pattern | Decant expression | Reason |
 |---|---|---|
 | Cheap work should absorb most routine reading and generation. | `scout` stays economy/low and `maker` stays balanced by default. | Preserves the existing small role-based core without provider-specific names. |
 | Premium judgment is valuable after orientation and at a direction choice. | The architect decision occurs after `scout.json`, not blindly before evidence. | The advisor gets task evidence and can be skipped when there is no unresolved question. |
-| Easy tasks should not pay a fixed coordination tax. | Economy task plus zero scout questions skips one frontier invocation. | Removes only overhead that Rein can identify and measure today. |
+| Easy tasks should not pay a fixed coordination tax. | Economy task plus zero scout questions skips one frontier invocation. | Removes only overhead that Decant can identify and measure today. |
 | Required advice must fit the budget. | An unresolved question with no optional invocation headroom stops before mutation. | Avoids silently substituting an under-informed build for the promised checkpoint. |
 | Routing changes need measurement. | `run.json`, `events.jsonl`, and `report.html` record decision, reason, question count, and invocation budget. | Makes `always`, `conditional`, and `never` modes comparable. |
 
-Rein does **not** cherry-pick hard-coded Fable/Sonnet pairings, automatic
+Decant does **not** cherry-pick hard-coded Fable/Sonnet pairings, automatic
 fan-out, a claim of 60% savings, live benchmark-driven model selection, or a
 true mid-`maker` resume loop. The current maker is one ephemeral Codex
 subprocess; pausing it twice for advice would require a transcript/resume
@@ -153,11 +153,11 @@ whether scout left open questions. Record:
 
 - acceptance-check and deterministic verification pass rate;
 - retries, reviewer findings, and human rework;
-- Rein subprocess invocations and stage latency;
+- Decant subprocess invocations and stage latency;
 - provider-reported input, cache, reasoning, and output tokens when an adapter
   can expose them;
 - actual billed cost and cost per accepted outcome.
 
-Until that forward evaluation exists, the defensible claim is narrow: Rein
+Until that forward evaluation exists, the defensible claim is narrow: Decant
 can skip one frontier architect call when the policy finds no open scout
 questions and can record that decision in its artifacts.

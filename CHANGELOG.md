@@ -2,26 +2,32 @@
 
 ## Unreleased
 
-- **Product rename: Rein** (formerly Relay10, briefly DisciplinedRun in an
-  unreleased branch). npm package `rein-cli@0.2.0`, single CLI **`rein`**.
-  Identity: keep a coding-agent run on a short rein — explicit scope,
-  risk-aware effort, an invocation ceiling, inspectable file evidence, and
-  hash-frozen replay.
-- **Breaking rename of every identifier.** Config `rein.config.json`, run dir
-  `.rein/`, skill ids `rein-*`, plugin dir `plugins/rein`, plugin/marketplace
-  name `rein`, GitHub path `minwoo19930301/rein`. The `disciplinedrun`, `dpr`,
-  `r10`, and `relay10` CLI aliases and the legacy `.relay10/` /
-  `relay10.config.json` paths are **removed**, not deprecated. Nothing was ever
-  published to npm under the old names, and `v0.1.1` remains the last tagged
-  release, so no installed user is affected. Rename an existing working
-  directory by hand: `mv .relay10 .rein && mv relay10.config.json
-  rein.config.json`.
+- **Product rename: Decant.** Formerly Relay10; `DisciplinedRun` and `Decant`
+  were unreleased intermediate names. npm package `decant@0.2.0`, single CLI
+  **`decant`**. The name states the job: pour off what several coding-agent
+  harnesses do well, leave the sediment, and carry the result into whichever
+  model you already use.
+- **Pluggable model backend.** Model stages now go through a provider
+  interface instead of hardcoding one CLI. `codex` and `kiro` ship as
+  implementations; `config.provider` selects one. Providers declare what they
+  can enforce (`native` vs `prompted` structured output, `native` sandbox vs
+  `tool-allowlist`) and that declaration is recorded in the run manifest, so a
+  report cannot imply a guarantee the backend never made.
+- **Breaking rename of every identifier.** Config `decant.config.json`, run dir
+  `.decant/`, skill ids `decant-*`, plugin dir `plugins/decant`,
+  plugin/marketplace name `decant`, GitHub path `minwoo19930301/decant`. The
+  `disciplinedrun`, `dpr`, `r10`, `relay10`, and `decant` CLI names and the
+  legacy `.relay10/` / `.decant/` paths are **removed**, not deprecated. Nothing
+  was ever published to npm under any old name and `v0.1.1` remains the last
+  tagged release, so no installed user is affected. Rename an existing working
+  directory by hand, for example
+  `mv .rein .decant && mv rein.config.json decant.config.json`.
 - Drop the "Effort Governor" branding. The subsystem is described as what it
   is: a hand-weighted keyword routing score plus an invocation ceiling, with no
   calibration data behind the weights.
-- Document two limits the README previously left implicit: model stages run
-  through the Codex CLI only (there is no executor abstraction), and generated
-  reports plus the Reader-10 clarity heuristics are Korean-language.
+- Document two limits the README previously left implicit: generated reports
+  plus the Reader-10 clarity heuristics are Korean-language, and role labels for
+  a provider without vendor metadata are guessed from model family names.
 - Preserve the `v0.1.1` Relay10 launch evidence verbatim:
   `docs/launch-report.html`, `docs/launch-verification.json`, and
   `docs/launch-reader-*.json` keep their released bytes, and the generator and
@@ -35,7 +41,7 @@
   file descriptor's inode against the four released artifacts, not just the
   pathname, so a symlink, a hardlink, or a path component swapped mid-write
   cannot redirect the bytes onto the archive. Overwriting an artifact requires
-  `--freeze`, `REIN_ALLOW_FROZEN_OVERWRITE=1`, and naming that artifact
+  `--freeze`, `DECANT_ALLOW_FROZEN_OVERWRITE=1`, and naming that artifact
   directly; it is refused before any work starts and is covered by tests.
 
 - Gate the frontier architect after scout evidence for economy-tier work while
@@ -47,7 +53,7 @@
   unmeasured token or currency savings.
 - Document Claude Code and Grok Build as **Skill hosts** (not stage executors),
   with dated evidence in `docs/host-surface-verification.md`.
-- Make `rein doctor` report a structured FAIL with PATH guidance when the Codex
+- Make `decant doctor` report a structured FAIL with PATH guidance when the Codex
   CLI is missing, instead of crashing on `spawn codex ENOENT`.
 - Format top-level CLI errors for missing executables with the same guidance.
 

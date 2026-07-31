@@ -27,7 +27,7 @@ const reportData = {
     { name: 'Global Agent', url: 'https://example.com/agent', signal: '10,000 stars · MIT · active', strengths: '권한 분리', cautions: '큰 runtime', adopted: '단계별 권한', excluded: '상시 daemon' },
   ],
   skillPack: [
-    { name: 'rein-research', job: '읽기 전용 근거 수집', patterns: 'progressive disclosure', boundary: '수정하지 않음', status: 'pass', current: '구현됨' },
+    { name: 'decant-research', job: '읽기 전용 근거 수집', patterns: 'progressive disclosure', boundary: '수정하지 않음', status: 'pass', current: '구현됨' },
   ],
   growthPlan: [
     { period: '30일', product: '실제 예제 3개', proof: '재현 로그', promotion: '짧은 데모', metric: '첫 성공률' },
@@ -94,14 +94,14 @@ test('generateReport creates a self-contained, accessible Korean HTML report', (
   assert.match(html, /> 생략<\/span>/);
   assert.match(html, /코드 easy-no-open-questions · 초기 역할 economy · 점수 3 · 미해결 질문 0개/);
   assert.match(html, /판단 전 1\/30회 · 필수 잔여 3회 · 고급 조언 0회/);
-  assert.match(html, /하네스별 장단점과 Rein 체리피킹/);
-  assert.match(html, /Rein이 채택한 패턴/);
+  assert.match(html, /하네스별 장단점과 Decant 체리피킹/);
+  assert.match(html, /Decant이 채택한 패턴/);
   assert.match(html, /현재 공급자·CLI·앱 지원 범위/);
   assert.match(html, /> 지원<\/span>/);
   assert.match(html, /> 미지원<\/span>/);
   assert.match(html, /글로벌 상위 저장소에서 무엇을 증류했나/);
   assert.match(html, /별 수는 인기와 발견 신호일 뿐/);
-  assert.match(html, /여덟 개만 남긴 Rein Skill pack/);
+  assert.match(html, /여덟 개만 남긴 Decant Skill pack/);
   assert.match(html, /앞으로 30일·60일·90일에 할 일/);
   assert.match(html, /Reader-10 검수/);
   assert.match(html, /10\/10 자동 구조 프로필 통과/);

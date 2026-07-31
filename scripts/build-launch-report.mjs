@@ -21,7 +21,7 @@ await mkdir(outputs, { recursive: true });
 // Deliberately the pre-rename URL: this script must keep reproducing the exact
 // bytes of the released v0.1.1 docs/launch-report.html, whose recorded
 // reportSha256 binding would break if any embedded string changed. GitHub
-// redirects the old path to minwoo19930301/rein.
+// redirects the old path to minwoo19930301/decant.
 const repository = 'https://github.com/minwoo19930301/relay10';
 const releaseTarget = `${repository}/releases/tag/v0.1.1`;
 const verificationLog = JSON.parse(await readFile(path.join(root, 'docs', 'launch-verification.json'), 'utf8'));
@@ -395,9 +395,9 @@ const deterministicAudit = {
 // v0.1.1 Relay10 evidence: launch-reader-live.json records a reportSha256 bound
 // to the exact bytes of the HTML. Regenerating in place breaks that binding, so
 // the shared guard writes to outputs/ unless --freeze and
-// REIN_ALLOW_FROZEN_OVERWRITE=1 are both supplied. Note that regeneration can no
+// DECANT_ALLOW_FROZEN_OVERWRITE=1 are both supplied. Note that regeneration can no
 // longer byte-reproduce the archive anyway: the report embeds a fresh
-// generatedAt timestamp and src/report.mjs now renders the Rein product name.
+// generatedAt timestamp and src/report.mjs now renders the Decant product name.
 // Compare the two files by content, not by hash.
 await writeEvidence(root, reportDestination, final);
 await writeEvidence(root, deterministicDestination, `${JSON.stringify(deterministicAudit, null, 2)}\n`);

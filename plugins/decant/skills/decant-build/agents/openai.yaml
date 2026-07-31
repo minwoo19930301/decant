@@ -1,0 +1,4 @@
+interface:
+  display_name: "Decant Build"
+  short_description: "Implement an authorized change in small slices"
+  default_prompt: "Use $decant-build to implement this approved change and show verification evidence."

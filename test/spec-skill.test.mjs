@@ -4,9 +4,9 @@ import path from 'node:path';
 import test from 'node:test';
 
 const root = path.resolve(new URL('..', import.meta.url).pathname);
-const skillRoot = path.join(root, 'plugins', 'rein', 'skills', 'rein-spec');
+const skillRoot = path.join(root, 'plugins', 'decant', 'skills', 'decant-spec');
 
-test('Rein spec skill carries a bounded confirmed-contract workflow', async () => {
+test('Decant spec skill carries a bounded confirmed-contract workflow', async () => {
   const [skill, contract, agent] = await Promise.all([
     readFile(path.join(skillRoot, 'SKILL.md'), 'utf8'),
     readFile(path.join(skillRoot, 'references', 'task-contract.md'), 'utf8'),
@@ -41,11 +41,11 @@ test('Rein spec skill carries a bounded confirmed-contract workflow', async () =
     'unresolved:',
   ]) assert.match(contract, new RegExp(field));
 
-  assert.match(agent, /\$rein-spec/);
+  assert.match(agent, /\$decant-spec/);
   assert.match(agent, /blocking decisions/i);
 });
 
-test('Rein spec evaluation set separates trigger, near-miss, outcome, and adversarial cases', async () => {
+test('Decant spec evaluation set separates trigger, near-miss, outcome, and adversarial cases', async () => {
   const evaluation = JSON.parse(await readFile(path.join(skillRoot, 'evals', 'cases.json'), 'utf8'));
   const shouldTrigger = [
     ...evaluation.tuning.shouldTrigger,

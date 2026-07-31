@@ -1,8 +1,10 @@
 node_modules/
+.decant/
+# Pre-0.2.0 working directories, kept ignored so a checkout that predates the
+# Decant rename stays clean. Nothing in the current tree writes to these.
 .rein/
-# Pre-0.2.0 working directories. Nothing in the current tree writes to these;
-# they are ignored so a checkout that predates the Rein rename stays clean.
 .relay10/
+/decant.config.json
 /rein.config.json
 /relay10.config.json
 coverage/

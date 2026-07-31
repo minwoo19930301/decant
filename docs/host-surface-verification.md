@@ -2,19 +2,19 @@
 
 Verification date: **2026-07-15**
 
-> Product display name: **Rein**. The commands, plugin namespace,
-> Skill ids, and outputs below retain the `rein` compatibility identifiers
+> Product display name: **Decant**. The commands, plugin namespace,
+> Skill ids, and outputs below retain the `decant` compatibility identifiers
 > that were actually verified on this date.
 
-## Rein rename check (2026-07-17)
+## Decant rename check (2026-07-17)
 
 The rename branch preserves the verified technical ids and paths while changing
 the product display name. On the branch, `npm test` passed 95/95 tests,
 `npm run lint` passed, `npm run validate:skills` passed all eight skills, and
 `npm run verify:package` installed the packed artifact and exercised the four
 CLI help entry points that existed at the time (`disciplinedrun`, `dpr`, `r10`,
-`relay10`). Those aliases were removed in the `0.2.0` Rein rename, which
-exposes only `rein`.
+`relay10`). Those aliases were removed in the `0.2.0` Decant rename, which
+exposes only `decant`.
 
 The Claude CLI was not available on `PATH` in this isolated verifier, so the
 2026-07-15 Claude host check below remains the latest live Claude-plugin
@@ -23,7 +23,7 @@ Skill validators; it must not be presented as a fresh Claude marketplace
 installation test.
 
 This note records evidence for **Skill and Plugin host surfaces**. It does not
-claim stage-executor support. Every Rein model stage still launches
+claim stage-executor support. Every Decant model stage still launches
 Codex CLI subprocesses (`codex exec` / `codex debug models`).
 
 ## Scope
@@ -39,20 +39,20 @@ Codex CLI subprocesses (`codex exec` / `codex debug models`).
 Commands and results on branch with the Claude Code plugin preview:
 
 ```text
-claude plugin validate plugins/rein   → Validation passed
+claude plugin validate plugins/decant   → Validation passed
 claude plugin validate .                 → Validation passed
-claude plugin details rein@rein    → Skills (8): rein-build … rein-spec
+claude plugin details decant@decant    → Skills (8): decant-build … decant-spec
 npm run check                            → 85+ tests pass; skill pack validation: pass (8 skills)
 ```
 
 Install surface observed earlier and still present:
 
-- Marketplace source: local clone (`claude plugin marketplace` lists `rein`)
-- Plugin: `rein@rein` version `0.1.1`, scope user, status enabled
+- Marketplace source: local clone (`claude plugin marketplace` lists `decant`)
+- Plugin: `decant@decant` version `0.1.1`, scope user, status enabled
 - Component inventory: 8 skills, 0 agents/hooks/MCP/LSP
-- Project clone surface: `.claude/skills` → `../plugins/rein/skills` resolves to the canonical pack
+- Project clone surface: `.claude/skills` → `../plugins/decant/skills` resolves to the canonical pack
 
-Boundary reminder: Claude Code loads skills and can shell out to `rein`. It does
+Boundary reminder: Claude Code loads skills and can shell out to `decant`. It does
 **not** replace Codex as the stage executor.
 
 ## Grok Build / Grok CLI (first host-surface check)
@@ -65,17 +65,17 @@ while the Claude-compat root is gated on a `[compat]` toggle that defaults on
 but can be disabled — a user who turns it off still loads this pack via
 `.agents/skills`. In a live Grok Build session opened in this repository:
 
-- All eight `rein-*` skills appeared as available skills (paths under
-  `plugins/rein/skills` and the `.agents/skills` symlink)
-- Skill instructions were loadable (`rein-review`, `rein-research`, and
+- All eight `decant-*` skills appeared as available skills (paths under
+  `plugins/decant/skills` and the `.agents/skills` symlink)
+- Skill instructions were loadable (`decant-review`, `decant-research`, and
   related pack entries)
 - Symlink integrity:
 
 ```text
-.agents/skills  → ../plugins/rein/skills  (resolves)
-.claude/skills  → ../plugins/rein/skills  (resolves)
-skills: rein-build, rein-debug, rein-orchestrate, rein-release,
-        rein-research, rein-review, rein-skill-lab, rein-spec
+.agents/skills  → ../plugins/decant/skills  (resolves)
+.claude/skills  → ../plugins/decant/skills  (resolves)
+skills: decant-build, decant-debug, decant-orchestrate, decant-release,
+        decant-research, decant-review, decant-skill-lab, decant-spec
 ```
 
 Boundary reminder:
@@ -91,12 +91,12 @@ On this machine (2026-07-15):
 
 ```text
 node src/cli.mjs doctor
-# before doctor UX fix: rein: spawn codex ENOENT
+# before doctor UX fix: decant: spawn codex ENOENT
 # after doctor UX fix:  FAIL Codex codex not found on PATH …
 ```
 
-`rein doctor` and catalog discovery require an authenticated Codex CLI on PATH.
-Skill-host verification does not require Codex; end-to-end `rein run` does.
+`decant doctor` and catalog discovery require an authenticated Codex CLI on PATH.
+Skill-host verification does not require Codex; end-to-end `decant run` does.
 
 ## How to re-run
 
@@ -106,23 +106,23 @@ npm run check
 npm run validate:skills
 
 # Claude Code
-claude plugin validate plugins/rein
+claude plugin validate plugins/decant
 claude plugin validate .
-claude plugin details rein@rein   # when installed
+claude plugin details decant@decant   # when installed
 
 # Grok Build / Grok CLI
-# open a session in the repo root and confirm the eight rein-* skills load
+# open a session in the repo root and confirm the eight decant-* skills load
 # from .agents/skills (or installed Claude-compat skill paths)
 
 # Runtime
-rein doctor
+decant doctor
 ```
 
 ## Claim language
 
 | Allowed | Not allowed |
 |---|---|
-| “Claude Code can install/load the eight-skill pack (preview)” | “Claude runs Rein stages natively” |
+| “Claude Code can install/load the eight-skill pack (preview)” | “Claude runs Decant stages natively” |
 | “Grok Build can load the eight skills from `.agents/skills`” | “Grok is a supported stage provider” |
 | “Codex CLI remains the verified stage runtime” | “Multi-provider stage mixing works” |
 

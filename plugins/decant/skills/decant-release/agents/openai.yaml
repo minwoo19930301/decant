@@ -1,0 +1,4 @@
+interface:
+  display_name: "Decant Release"
+  short_description: "Prove a release or handoff before publishing"
+  default_prompt: "Use $decant-release to prepare verifiable release evidence without publishing yet."

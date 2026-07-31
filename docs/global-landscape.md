@@ -31,7 +31,7 @@ four distinct groups:
 
 ## The closest prior art
 
-Rein does not claim that phase-specific model routing is new.
+Decant does not claim that phase-specific model routing is new.
 
 - [OpenDev](https://github.com/opendev-to/opendev) is the closest direct
   competitor: it already separates thinking, compacting, and self-critique
@@ -42,7 +42,7 @@ Rein does not claim that phase-specific model routing is new.
 - [Aider](https://github.com/Aider-AI/aider) pairs an architect with an editor
   and follows edits with deterministic lint/test feedback.
 
-Rein's proposed contribution is narrower: reuse the installed Codex CLI,
+Decant's proposed contribution is narrower: reuse the installed Codex CLI,
 route by risk and verifiability, keep hashed inspectable artifacts, record
 explicit command checks separately from a model reviewer, and only then send a
 standalone HTML report through Reader-10. These are signals, not proof of truth.
@@ -75,5 +75,5 @@ The strongest recurring design choices are:
 - select models per role only when the quality, latency, and cost difference is
   measured on representative tasks.
 
-Rein adopts the small-tool, deterministic-gate, bounded-retry pattern. It
+Decant adopts the small-tool, deterministic-gate, bounded-retry pattern. It
 does not attempt to reproduce a hosted issue-to-PR platform in version 0.1.

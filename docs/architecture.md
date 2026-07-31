@@ -1,29 +1,45 @@
-# Rein architecture
+# Decant architecture
 
-Rein is a thin subprocess harness around the installed Codex CLI, built with
+Decant is a thin subprocess harness around the installed Codex CLI, built with
 zero third-party npm runtime dependencies. It does not replace the agent
 runtime, provide a second terminal interface, or maintain a hidden memory
-database. A run writes inspectable artifacts beneath `.rein/runs/<id>/`.
+database. A run writes inspectable artifacts beneath `.decant/runs/<id>/`.
 
-## Current Codex runtime coupling
+## Stage backends
 
-Version 0.1.1 is intentionally, and concretely, Codex-runtime-only. The 0.2
-preview renames the single command to `rein` and removes the v0.1 `relay10` /
-`r10` names rather than keeping them as aliases:
+Version `0.1.1` was concretely Codex-runtime-only: `src/executor.mjs` started
+`codex exec` for every model stage, `src/catalog.mjs` shelled out to
+`codex debug models`, and configuration had model overrides but no notion of a
+provider. `0.2` replaces that with one contract in `src/providers/contract.mjs`:
 
-- `src/executor.mjs` starts `codex exec` for every model stage;
-- `src/catalog.mjs` discovers models with `codex debug models`;
-- `rein doctor` checks `codex --version`;
-- stage arguments use Codex sandbox, search, output-schema, ephemeral, and
-  reasoning-effort flags;
-- configuration has model overrides, but no `providerId`, base URL, API key,
-  provider profile, or capability negotiation.
+    runStage({ prompt, cwd, model, effort, sandbox, search,
+               outputFile, outputSchema, timeoutMs })
 
-This means the verified release path is Codex CLI with the local OpenAI model
-catalog. An xAI/Grok Responses endpoint may be reachable experimentally through
-a user-level Codex custom provider, but Rein does not configure or validate
-that path and cannot mix providers by stage. Direct OpenAI API, Anthropic,
-Gemini, and xAI executors are not implemented.
+plus `discoverCatalog()`. `src/pipeline.mjs` names no CLI; it resolves whichever
+provider `config.provider` selected. Two implementations ship:
+
+- `codex` — native `--output-last-message` and `--output-schema`, kernel
+  sandbox, `codex debug models` discovery.
+- `kiro` — Kiro CLI. No final-message channel and no schema flag, so the adapter
+  fences the answer with sentinels and extracts it from the transcript, and
+  carries the JSON schema in the prompt. Isolation is a tool allowlist.
+
+The abstraction's job is **not** to make backends look alike. Providers declare
+capabilities (`outputSchema: 'native' | 'prompted'`,
+`sandbox: 'native' | 'tool-allowlist'`) and those declarations are recorded in
+the run manifest, so a report cannot imply a guarantee the backend never made. A
+prompted schema cannot refuse malformed output; a tool allowlist is not a
+kernel-enforced sandbox.
+
+The provider set is closed in code. Config selects a provider by id but cannot
+supply an executable, for the same reason it cannot replace the model-catalog
+command: a checked-in project file must not decide which binary runs.
+
+Not implemented: direct Anthropic, OpenAI, xAI, or Gemini HTTP adapters, and
+mixing providers within one run. The contract assumes a CLI subprocess that can
+produce a final answer, so an HTTP provider would need to supply the workspace
+file tools, shell execution, approval behavior, search, and tool-call loop that
+a coding-agent CLI already provides.
 
 Protocol compatibility alone is insufficient. Codex currently supplies the
 workspace file tools, shell execution, sandbox and approval behavior, search,
@@ -46,7 +62,7 @@ request
 
 ## Initial routing with one evidence checkpoint
 
-Task difficulty alone is a poor proxy for a suitable role. Rein records five
+Task difficulty alone is a poor proxy for a suitable role. Decant records five
 scores from 0 to 3:
 
 - `complexity`: expected synthesis or decomposition;
@@ -69,9 +85,9 @@ transcript-aware retry and mid-execution advice remain future work.
 
 ## Model labels come from metadata
 
-Rein reads `codex debug models` and maps visible entries to `frontier`,
+Decant reads `codex debug models` and maps visible entries to `frontier`,
 `balanced`, and `economy` using catalog descriptions, priority, supported
-efforts, and user overrides. These labels are routing hints. Rein does not
+efforts, and user overrides. These labels are routing hints. Decant does not
 measure current token price, latency, benchmark performance, or relative
 intelligence, so `economy` does not mean provably cheapest or weakest and
 `frontier` does not mean provably best for every task.
@@ -93,7 +109,7 @@ headings, length, terminology, links, action cues, and HTML accessibility. It
 does not semantically understand the report. Live Reader-10 schedules ten
 separate reader-model invocations per round. Those invocations may reuse one
 model or related models, so their errors are not guaranteed to be independent.
-The configured invocation limit counts Rein subprocess launches, not hidden
+The configured invocation limit counts Decant subprocess launches, not hidden
 provider turns, tokens, or monetary cost.
 
 ## Artifact contract
@@ -112,7 +128,7 @@ A completed run contains an artifact hash map in `run.json` and can contain:
 The list is an execution-artifact contract, not a complete audit ledger. A
 completed run hashes its files so `replay --frozen` can reject missing or
 changed artifacts and copy the already-saved report without model calls.
-`rein report` is the separate model-free re-render path and never
+`decant report` is the separate model-free re-render path and never
 overwrites the frozen report. Neither command resumes a run or recreates its
 original machine, toolchain, hooks, credentials, or remote model service.
 
@@ -124,10 +140,10 @@ without a shell, captures bounded output, and terminates the spawned process
 group on POSIX timeout. Users must still choose verification executables they
 trust.
 
-Rein prompts do not authorize Git push, deployment, merge, purchase, or
+Decant prompts do not authorize Git push, deployment, merge, purchase, or
 other external publication. The effective boundary also depends on the local
 Codex installation, configuration, hooks, MCP servers, credentials, and
-operating system; Rein cannot independently constrain capabilities supplied
+operating system; Decant cannot independently constrain capabilities supplied
 outside its subprocess arguments.
 
 ## Target portability boundary
@@ -151,7 +167,7 @@ not merely after a text response succeeds.
 
 For app surfaces:
 
-- a Skill can document and call `rein route/run/inspect`, but cannot by itself
+- a Skill can document and call `decant route/run/inspect`, but cannot by itself
   force the current Codex desktop task to switch models per stage;
 - a Codex Plugin with a local stdio MCP server can expose `route`, `run`,
   `status`, `inspect`, and `report` as app tools while reusing the CLI engine;
@@ -181,6 +197,6 @@ support matrix and official references.
 - Deterministic Reader-10 is structural rather than semantic.
 - Live Reader-10 costs ten model invocations per round and does not guarantee
   model diversity.
-- Verification is explicit opt-in; Rein does not infer safe project commands.
+- Verification is explicit opt-in; Decant does not infer safe project commands.
 - Run artifacts do not snapshot the entire machine, toolchain, or remote model
   service.

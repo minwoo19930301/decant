@@ -1,4 +1,0 @@
-interface:
-  display_name: "Rein Debug"
-  short_description: "Find a root cause before proposing a repair"
-  default_prompt: "Use $rein-debug to reproduce and isolate this failure before editing anything."

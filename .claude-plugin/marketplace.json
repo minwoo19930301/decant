@@ -1,14 +1,14 @@
 {
-  "name": "rein",
-  "description": "Rein skill pack for evidence-led repository work.",
+  "name": "decant",
+  "description": "Decant skill pack for evidence-led repository work.",
   "owner": {
     "name": "minwoo19930301"
   },
   "plugins": [
     {
-      "name": "rein",
-      "source": "./plugins/rein",
-      "description": "Eight small, on-demand Rein skills for evidence-led repository work.",
+      "name": "decant",
+      "source": "./plugins/decant",
+      "description": "Eight small, on-demand Decant skills for evidence-led repository work.",
       "license": "MIT",
       "keywords": ["claude-code", "agent-skills", "model-routing", "release-evidence"]
     }

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Decant Orchestrate"
+  short_description: "Route a task through the smallest safe workflow"
+  default_prompt: "Use $decant-orchestrate to route this repository task without adding unnecessary stages."
