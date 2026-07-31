@@ -133,3 +133,53 @@ test('payload audit passes aligned content but does not claim semantic proof', (
   assert.equal(result.passed, true);
   assert.equal(result.semanticVerified, false);
 });
+
+test('an English report can clear the clarity gate', () => {
+  // Before the cue table was bilingual, hasSummary/hasPurpose/hasAction/
+  // hasPrerequisite/hasFailureGuidance/hasEvidence were Korean-only regexes and
+  // hasLangDeclaration required lang="ko". A well-written English report scored
+  // 5/10 and failed the gate no matter its quality. That was a bug, not a policy.
+  const html = [
+    '<!doctype html><html lang="en"><head>',
+    '<meta name="viewport" content="width=device-width">',
+    '<title>Run report: add pagination</title></head><body><main>',
+    '<h1>Run report: add pagination</h1>',
+    '<h2>Summary</h2><p>The goal was to add pagination to the users endpoint.',
+    'Outcome: the maker stage edited two files and the reviewer found one risk.</p>',
+    '<h2>Purpose</h2><p>This report explains what ran, in order to let a newcomer verify it.</p>',
+    '<h2>Prerequisites</h2><p>Requires Node 20 and an agent CLI before you start.</p>',
+    '<h2>Next steps</h2><p>You should run the test command and verify the diff. Recommended: review the risk.</p>',
+    '<h2>Failure handling</h2><p>If a stage fails there is no rollback; recover by reverting. Warning: a partial change can remain.</p>',
+    '<h2>Evidence</h2><p>Source: https://example.com/spec, verified by the reviewer.</p>',
+    '</main></body></html>',
+  ].join('\n');
+
+  const evaluated = evaluateReader10(html, {
+    task: 'add pagination to the users endpoint',
+    summary: 'The maker stage edited two files and the reviewer found one risk.',
+  });
+  const aggregate = aggregateReader10(evaluated.personas, { minPass: 9 });
+  assert.equal(aggregate.criticalCount, 0);
+  assert.ok(
+    aggregate.passedPersonas >= 9,
+    `an English report scored ${aggregate.passedPersonas}/10; the gate must not be language-specific`,
+  );
+  assert.equal(aggregate.passed, true);
+});
+
+test('any declared document language satisfies the lang check', () => {
+  const withLang = (lang) => evaluateReader10(
+    `<!doctype html><html lang="${lang}"><head><title>t</title>`
+    + '<meta name="viewport" content="width=device-width"></head>'
+    + '<body><main><h1>t</h1><p>Summary: purpose, next steps, prerequisites, '
+    + 'failure handling, evidence at https://example.com</p></main></body></html>',
+    { task: 't', summary: 'Summary of t' },
+  );
+  for (const lang of ['en', 'ko', 'ja', 'pt-BR']) {
+    const langCheck = withLang(lang).personas
+      .flatMap((persona) => persona.checks)
+      .find((entry) => entry.id === 'lang');
+    assert.ok(langCheck, 'a lang check must exist');
+    assert.equal(langCheck.passed, true, `lang="${lang}" must satisfy the lang check`);
+  }
+});
