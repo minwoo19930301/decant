@@ -385,27 +385,27 @@ function canonicalPayload({ task, summary, evidence, verification, risks, nextSt
 }
 
 function statusFromGates({ truth, verification, readers, renderAudit }) {
-  // Correctness signals decide pass/fail. Report clarity is a separate signal —
-  // that separation is the project's headline claim, and collapsing a clarity
-  // score into `fail` broke it in the one place that matters, the exit status.
+  // `status` is the correctness verdict and nothing else. Report clarity is a
+  // separate signal by design, so it does not appear here at all — it travels in
+  // `manifest.reportClarity` and is printed on its own line.
   //
-  // A live run made this concrete: five stages passed, the reviewer passed, the
-  // user's `npm test` went from 1 test to 5 and exited 0 — and the run was
-  // reported `fail` because the generated report scored 8 of 10 personas with
-  // zero critical issues. The code was fine; the write-up was slightly terse.
+  // This was learned the hard way twice. First a clarity score of 8/10 with zero
+  // critical issues made a run `fail` while five stages, the reviewer, and the
+  // user's `npm test` all passed. Then, with that softened to `warn`, the run
+  // still exited non-zero for the same reason — so `decant run && git commit`
+  // was still blocked by prose. A tool whose headline claim is that it keeps
+  // signals apart cannot merge them into the one number a script reads.
   //
-  // Critical report issues are different. Those mean the artifact itself is
-  // broken or unsafe (no body, active external embeds, executable links), so
-  // they stay a failure.
+  // Critical report issues are different and stay a failure: no body, active
+  // external embeds, executable links. Those mean the artifact is broken or
+  // unsafe, which is structural, not stylistic.
   const criticalReportIssues = (readers?.criticalCount ?? 0) > 0
     || (renderAudit?.criticalCount ?? 0) > 0;
   if (!truth.passed || verification.status === 'fail' || criticalReportIssues) {
     return 'fail';
   }
+  // Nothing was proven. A caller must be able to catch this, so it is not `pass`.
   if (verification.status === 'unverified') return 'warn';
-  // Below the clarity threshold, but nothing is broken: worth a look, not a
-  // verdict on the change.
-  if (readers?.passed === false || renderAudit?.passed === false) return 'warn';
   return 'pass';
 }
 
@@ -1488,6 +1488,18 @@ export async function runPipeline({
     };
     manifest.gates.render = readers.renderAudit;
     manifest.status = statusFromGates({ truth, verification, readers, renderAudit });
+    // Carried beside the verdict, never inside it. A caller that cares about the
+    // write-up reads this; a caller that cares whether the change is sound reads
+    // `status`.
+    manifest.reportClarity = {
+      mode: readers.mode,
+      passed: renderAudit.passed,
+      passedPersonas: renderAudit.passedPersonas,
+      totalPersonas: renderAudit.totalPersonas,
+      minPass: config.readerGate.minPass,
+      criticalCount: renderAudit.criticalCount,
+      affectsStatus: 'critical issues only',
+    };
     await writeJson(readersFile, readers);
     html = await renderRunReport(manifest, {
       summary, verification, readers, evidence: scout.evidence, nextSteps: manifest.nextSteps,

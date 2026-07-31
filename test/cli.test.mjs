@@ -365,7 +365,7 @@ test('an authorized run passes verification consent and the validated budget to 
     },
   });
 
-  assert.equal(code, 2);
+  assert.equal(code, 3); // warn: nothing proven, not a failure
   assert.equal(received.allowVerificationCommands, true);
   assert.equal(received.budgetCalls, 7);
 });
@@ -393,7 +393,7 @@ test('report defaults to a regenerated file and leaves the original immutable', 
     },
   });
 
-  assert.equal(code, 2);
+  assert.equal(code, 3);
   assert.equal(received.selectedRun, runDir);
   assert.equal(received.options.outputFile, path.join(runDir, 'report.regenerated.html'));
   assert.equal(await readText(original), '<p>original</p>');
@@ -414,7 +414,7 @@ test('inspect prints the restored pipeline manifest runId and preserves warn exi
   });
   const output = captureOutput();
 
-  assert.equal(await main(['inspect', id], { cwd, stdout: output.stream }), 2);
+  assert.equal(await main(['inspect', id], { cwd, stdout: output.stream }), 3);
   assert.match(output.read(), new RegExp(`Run: ${id}`));
   assert.doesNotMatch(output.read(), /Run: undefined/);
 });
@@ -465,7 +465,14 @@ test('frozen replay verifies before atomically copying and never mutates run art
 
 test('warn and fail statuses use the non-success exit code', () => {
   assert.equal(exitCodeForStatus('pass'), 0);
-  assert.equal(exitCodeForStatus('warn'), 2);
+  // warn and fail are both non-zero, but distinguishable: a caller that only
+  // blocks on real failures can test for 2, while `!= 0` still catches both.
+  // Report clarity never reaches this number.
+  assert.equal(exitCodeForStatus('warn'), 3);
   assert.equal(exitCodeForStatus('fail'), 2);
   assert.equal(exitCodeForStatus('error'), 2);
+  assert.notEqual(exitCodeForStatus('warn'), exitCodeForStatus('fail'));
+  for (const status of ['warn', 'fail', 'error']) {
+    assert.notEqual(exitCodeForStatus(status), 0);
+  }
 });
