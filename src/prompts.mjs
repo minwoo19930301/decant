@@ -21,12 +21,15 @@ export function makerPrompt(task, runDir, options = {}) {
  * built, so this variant names only the workspace and the task, and is explicit
  * that absent evidence means `uncertain` rather than an assumed pass.
  */
-export function standaloneReviewerPrompt(task, cwd, outputFile) {
+export function standaloneReviewerPrompt(task, cwd, outputFile, contract = null) {
+  const contractSection = contract
+    ? `\nThe approval criteria were written by a person before this code existed. You must answer every one of them and you may not substitute your own list. For each, emit one entry in acceptance_checks whose "criterion" is exactly the criterion id shown below:\n\n${contract}\n\nYou may add findings beyond these criteria, but every id above must appear in acceptance_checks with a decision and concrete evidence.\n`
+    : '';
   return `You are the correctness reviewer. You did not write this code and there is no plan or maker log to consult.
 
 Task the code was supposed to accomplish: ${task}
 Workspace: ${cwd}
-
+${contractSection}
 Read the workspace and judge whether it accomplishes that task. Do not edit anything.
 
 Focus on correctness, security, regressions, missing tests, and claims the code cannot support. Check the task's stated requirements one by one. A requirement can be satisfied on paper and still fail in practice, so judge each one against how the code will actually be used, not against whether the code appears to mention it.

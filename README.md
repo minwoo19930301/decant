@@ -267,6 +267,41 @@ In the measured A/B below, this alone caught — unprompted, as `critical` — t
 defect that broke the task's first requirement and that the unharnessed run
 shipped silently. The full six-stage pipeline rated the same defect `low`.
 
+**…make the reviewer answer *my* conditions, not its own?**
+
+By default the reviewer invents its own acceptance checks, which means a model
+grades itself against criteria it chose. Write them down first instead:
+
+```json
+{
+  "version": 1,
+  "criteria": [
+    { "id": "opens-directly", "risk": "critical",
+      "requirement": "index.html works when opened directly, no build step and no server." },
+    { "id": "pure-scoring", "risk": "high",
+      "requirement": "scoring.mjs exports a pure function with no DOM access, covered by tests." },
+    { "id": "line-budget", "risk": "low",
+      "requirement": "The whole thing is under 400 lines." }
+  ]
+}
+```
+
+```bash
+decant review "build the game" --contract contract.json
+```
+
+Every id must come back with a decision and evidence. A rejected `critical` or
+`high` criterion blocks; a missing answer on a `critical` one blocks; anything
+else unresolved is reported as a visible gap. This check is deterministic and
+ignores the reviewer's own verdict — a model that says `pass` while rejecting a
+critical criterion, or that quietly drops an inconvenient requirement, does not
+get taken at its word:
+
+```text
+Contract: 8/8 criteria answered
+  BLOCKING opens-directly: reviewer rejected it
+```
+
 **…look at an old run?**
 
 ```bash
