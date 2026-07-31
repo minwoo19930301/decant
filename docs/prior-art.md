@@ -142,3 +142,23 @@ To refresh this record, query each linked repository again, preserve the new
 date, re-check `archived`, `pushed_at`, the exact license files, README status,
 and releases, then document any changed decision. Do not silently overwrite a
 dated star count or turn a popularity change into a quality conclusion.
+
+## Sibling projects by the same author
+
+These were written alongside this one in July 2026 and were not consulted until
+2026-07-31. Recording them here because "independent implementation" is a weaker
+claim when the source is your own earlier work.
+
+| Project | What it does | What Decant took |
+|---|---|---|
+| [proofline](https://github.com/minwoo19930301/proofline) | Browser-only review workspace: declare approval conditions, attach evidence per condition, record explicit reviewer decisions, export a review pack | The **declared approval contract**. Its three-step workflow — define the contract, record supplied evidence, decide per check — is the direct source of `decant review --contract`, and its gate policy (a rejected high/critical check blocks; a critical check with no decision or evidence blocks; other omissions stay visible gaps) is reproduced in `src/contract.mjs`. |
+| [swarmscope](https://github.com/minwoo19930301/swarmscope) | Deterministic multi-agent orchestration simulator: decide how many agents a job needs *before* the real run spends tokens | Nothing yet. Its premise is directly relevant — Decant's `route` previews stages but estimates no time or tokens, and the benchmarks show a 5.4× token gap that a preview could have surfaced. |
+| [context-forge](https://github.com/minwoo19930301/context-forge) | Browser-local dependency-aware context packer: select source under a token budget with the file choices visible and editable | Nothing yet. Decant's scout is a model call that reads the repository; deterministic dependency-aware selection would be cheaper and is the obvious replacement, especially in the fast lane where the scout is skipped entirely. |
+| [grok-build](https://github.com/minwoo19930301/grok-build) | Fork of a coding-agent harness with a TUI | Already distilled — see [grokbuild-distillation.md](grokbuild-distillation.md). |
+| [diffsentinel-*](https://github.com/minwoo19930301/diffsentinel-disciplinedrun), [forgesignal-*](https://github.com/minwoo19930301/forgesignal-disciplinedrun) | Controlled harness-versus-vanilla benchmarks | The results and the methodology — see [benchmarks.md](benchmarks.md). The vertical-slice gate in the fast lane exists because DiffSentinel's result document prescribed it. |
+
+Checked and **not** adopted: Proofline's own deterministic gate rules were already
+matched by `assessReviewer`. Six boundary cases were run against it — a `pass`
+verdict beside a critical finding, a failed acceptance check, an accepted check
+with no evidence, and so on — and all six were already blocked. That comparison
+is the reason no gate logic was rewritten.

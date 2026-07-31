@@ -24,6 +24,7 @@ import { spawnCapture } from './executor.mjs';
 import { routeTask } from './router.mjs';
 import { assessReviewer, REVIEWER_SCHEMA } from './pipeline.mjs';
 import { standaloneReviewerPrompt } from './prompts.mjs';
+import { checkAgainstContract, loadContract, renderContract } from './contract.mjs';
 import {
   ensureDir,
   exists,
@@ -41,7 +42,7 @@ Usage:
   decant doctor [--json]
   decant route <task> [--json] [--lane auto|fast|full] [--time-budget-minutes N] [--first-artifact path]
   decant run <task> [--dry-run] [--live-readers] [--budget-calls N] [--lane auto|fast|full] [--time-budget-minutes N] [--first-artifact path] [--allow-verification-commands]
-  decant review <task> [--json] [--output file]
+  decant review <task> [--contract file] [--json] [--output file]
   decant inspect [run-id] [--json]
   decant report [run-id] [--output file]
   decant replay [run-id] --frozen [--output file]
@@ -114,6 +115,7 @@ const COMMAND_SPECS = Object.freeze({
     flags: {
       json: { key: 'json', type: BOOLEAN },
       output: { key: 'output', type: VALUE },
+      contract: { key: 'contract', type: VALUE },
     },
   },
   inspect: {
@@ -570,6 +572,9 @@ export async function main(argv = process.argv.slice(2), context = {}) {
     const task = positionals.join(' ');
     const loadForReview = context.configAndCatalogImpl ?? configAndCatalog;
     const { config, catalog, provider } = await loadForReview(cwd);
+    const contract = flags.contract
+      ? await loadContract(path.resolve(cwd, flags.contract))
+      : null;
     const reviewer = catalog.roles[config.effort?.reviewerRole ?? 'frontier'];
     const outputFile = path.resolve(cwd, flags.output ?? 'decant-review.json');
     if (aliasesProtectedFile(cwd, outputFile)) {
@@ -580,7 +585,12 @@ export async function main(argv = process.argv.slice(2), context = {}) {
       + `Provider: ${provider.id} · model ${reviewer.model}/${config.effort?.reviewer ?? reviewer.effort}\n`,
     );
     await provider.runStage({
-      prompt: standaloneReviewerPrompt(task, cwd, outputFile),
+      prompt: standaloneReviewerPrompt(
+        task,
+        cwd,
+        outputFile,
+        contract ? renderContract(contract) : null,
+      ),
       cwd,
       model: reviewer.model,
       effort: config.effort?.reviewer ?? reviewer.effort,
@@ -591,8 +601,13 @@ export async function main(argv = process.argv.slice(2), context = {}) {
     });
     const result = await readJson(outputFile);
     const assessed = assessReviewer(result);
+    const contractCheck = contract ? checkAgainstContract(contract, result) : null;
     if (flags.json) {
-      stdout.write(`${JSON.stringify({ ...result, assessment: assessed }, null, 2)}\n`);
+      stdout.write(`${JSON.stringify({
+        ...result,
+        assessment: assessed,
+        ...(contractCheck ? { contract: contractCheck } : {}),
+      }, null, 2)}\n`);
     } else {
       stdout.write(`Verdict: ${result.verdict}\n${result.summary}\n`);
       for (const finding of result.findings ?? []) {
@@ -601,6 +616,11 @@ export async function main(argv = process.argv.slice(2), context = {}) {
       }
       for (const problem of assessed.problems ?? []) {
         stdout.write(`  malformed: ${problem}\n`);
+      }
+      if (contractCheck) {
+        stdout.write(`Contract: ${contractCheck.answered}/${contractCheck.total} criteria answered\n`);
+        for (const item of contractCheck.blocking) stdout.write(`  BLOCKING ${item}\n`);
+        for (const item of contractCheck.gaps) stdout.write(`  gap      ${item}\n`);
       }
       stdout.write(`Saved: ${outputFile}\n`);
     }
@@ -613,9 +633,13 @@ export async function main(argv = process.argv.slice(2), context = {}) {
     // not run the tests has told you something different from a reviewer that
     // read the code and rejected it. A malformed answer is a failure of this
     // command, not a verdict, so it takes 2 as well.
+    //
+    // A declared contract can override the reviewer's own verdict, because the
+    // model does not get to decide whether it answered the question it was asked.
     const malformed = (assessed.problems ?? []).length > 0;
-    if (malformed || result.verdict === 'fail') return 2;
-    return result.verdict === 'uncertain' ? 3 : 0;
+    if (malformed || result.verdict === 'fail' || contractCheck?.blocking.length) return 2;
+    if (result.verdict === 'uncertain' || contractCheck?.gaps.length) return 3;
+    return 0;
   }
 
   if (command === 'inspect') {
