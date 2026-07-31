@@ -369,8 +369,24 @@ async function copyReportAtomically(reportFile, outputFile) {
   }
 }
 
+/**
+ * Exit codes are part of the contract, so they distinguish the two reasons a run
+ * is not a clean pass:
+ *
+ *   0  pass  — correctness signals held
+ *   2  fail  — a stage errored, the reviewer rejected, verification failed, or
+ *              the report itself is broken or unsafe
+ *   3  warn  — correctness signals held but nothing was proven, e.g. no
+ *              verification commands were configured
+ *
+ * A caller that wants "did anything at all go wrong" tests `code -ne 0`. A
+ * caller that only blocks on real failures tests `code -eq 2`. Report clarity
+ * never appears in the exit code.
+ */
 export function exitCodeForStatus(status) {
-  return status === 'pass' ? 0 : 2;
+  if (status === 'pass') return 0;
+  if (status === 'warn') return 3;
+  return 2;
 }
 
 async function pipelineModule(injected) {
@@ -494,6 +510,16 @@ export async function main(argv = process.argv.slice(2), context = {}) {
       allowVerificationCommands: Boolean(flags.allowVerificationCommands),
     });
     stdout.write(`Run ${result.manifest.status}: ${result.runDir}\n`);
+    // Printed as its own line, not folded into the verdict. `status` answers
+    // "is the change sound"; this answers "is the write-up readable".
+    const clarity = result.manifest.reportClarity;
+    if (clarity) {
+      stdout.write(
+        `Report clarity: ${clarity.passedPersonas}/${clarity.totalPersonas}`
+        + ` (threshold ${clarity.minPass}, ${clarity.criticalCount} critical)`
+        + `${clarity.passed ? '' : ' — below threshold, does not change the verdict'}\n`,
+      );
+    }
     stdout.write(`Report: ${path.join(result.runDir, 'report.html')}\n`);
     return exitCodeForStatus(result.manifest.status);
   }
