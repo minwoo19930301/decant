@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdirSync, rmSync, symlinkSync, unlinkSync } from 'node:fs';
+import { link, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -119,4 +120,97 @@ test('an ordinary write lands in outputs and leaves the archive alone', async (t
   await writeEvidence(sandbox, destination, 'REGENERATED');
   assert.equal(await readFile(path.join(sandbox, 'outputs', 'launch-report.html'), 'utf8'), 'REGENERATED');
   assert.equal(await readFile(archive, 'utf8'), 'RELEASED');
+});
+
+test('a hardlink to the archive cannot be written through', async (t) => {
+  const sandbox = await mkdtemp(path.join(tmpdir(), 'rein-evidence-'));
+  t.after(() => rm(sandbox, { recursive: true, force: true }));
+  const archive = path.join(sandbox, 'docs', 'launch-report.html');
+  await mkdir(path.join(sandbox, 'docs'), { recursive: true });
+  await mkdir(path.join(sandbox, 'outputs'), { recursive: true });
+  await writeFile(archive, 'RELEASED', 'utf8');
+  // A hardlink is an ordinary file: it passes every symlink test while sharing
+  // the archive's inode, so O_NOFOLLOW does not stop it.
+  await link(archive, path.join(sandbox, 'outputs', 'launch-report.html'));
+
+  const destination = evidenceTarget(sandbox, 'docs/launch-report.html', { argv: [], env: {} });
+  await assert.rejects(
+    () => writeEvidence(sandbox, destination, 'OVERWRITTEN'),
+    /hard links/,
+  );
+  assert.equal(await readFile(archive, 'utf8'), 'RELEASED');
+});
+
+test('a write that resolves onto a different archive file is refused by inode', async (t) => {
+  const sandbox = await mkdtemp(path.join(tmpdir(), 'rein-evidence-'));
+  t.after(() => rm(sandbox, { recursive: true, force: true }));
+  await mkdir(path.join(sandbox, 'docs'), { recursive: true });
+  const report = path.join(sandbox, 'docs', 'launch-report.html');
+  const verification = path.join(sandbox, 'docs', 'launch-verification.json');
+  await writeFile(report, 'RELEASED REPORT', 'utf8');
+  await writeFile(verification, 'RELEASED LOG', 'utf8');
+
+  // The descriptor lands on launch-report.html while the caller claimed
+  // launch-verification.json. Only descriptor identity catches this, which is
+  // the same check that stops a won race on an intermediate path component.
+  await assert.rejects(
+    () => writeEvidence(
+      sandbox,
+      { target: report, frozen: true, relative: 'docs/launch-verification.json' },
+      'OVERWRITTEN',
+    ),
+    /is the same file as frozen evidence docs\/launch-report\.html/,
+  );
+  assert.equal(await readFile(report, 'utf8'), 'RELEASED REPORT');
+  assert.equal(await readFile(verification, 'utf8'), 'RELEASED LOG');
+});
+
+test('flipping outputs into a symlink mid-write never reaches the archive', async (t) => {
+  const sandbox = await mkdtemp(path.join(tmpdir(), 'rein-evidence-'));
+  t.after(() => rm(sandbox, { recursive: true, force: true }));
+  const archive = path.join(sandbox, 'docs', 'launch-report.html');
+  await mkdir(path.join(sandbox, 'docs'), { recursive: true });
+  await mkdir(path.join(sandbox, 'outputs'), { recursive: true });
+  await writeFile(archive, 'RELEASED', 'utf8');
+
+  // An auditor won this race against a purely path-based guard in 30 seconds.
+  const flipper = setInterval(() => {
+    try {
+      rmSync(path.join(sandbox, 'outputs'), { recursive: true, force: true });
+      symlinkSync('docs', path.join(sandbox, 'outputs'));
+      unlinkSync(path.join(sandbox, 'outputs'));
+      mkdirSync(path.join(sandbox, 'outputs'));
+    } catch {
+      // racing the writer; ignore
+    }
+  }, 0);
+  t.after(() => clearInterval(flipper));
+
+  const deadline = Date.now() + 1_500;
+  while (Date.now() < deadline) {
+    const destination = evidenceTarget(sandbox, 'docs/launch-report.html', { argv: [], env: {} });
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await writeEvidence(sandbox, destination, 'RACE-ATTACK-PAYLOAD');
+    } catch {
+      // every rejection is the guard doing its job
+    }
+  }
+  clearInterval(flipper);
+  assert.equal(await readFile(archive, 'utf8'), 'RELEASED');
+});
+
+test('--freeze with the override may still write its own artifact', async (t) => {
+  const sandbox = await mkdtemp(path.join(tmpdir(), 'rein-evidence-'));
+  t.after(() => rm(sandbox, { recursive: true, force: true }));
+  const archive = path.join(sandbox, 'docs', 'launch-report.html');
+  await mkdir(path.join(sandbox, 'docs'), { recursive: true });
+  await writeFile(archive, 'RELEASED', 'utf8');
+
+  const destination = evidenceTarget(sandbox, 'docs/launch-report.html', {
+    argv: ['node', 'script', '--freeze'],
+    env: { REIN_ALLOW_FROZEN_OVERWRITE: '1' },
+  });
+  await writeEvidence(sandbox, destination, 'DELIBERATELY REPLACED');
+  assert.equal(await readFile(archive, 'utf8'), 'DELIBERATELY REPLACED');
 });
