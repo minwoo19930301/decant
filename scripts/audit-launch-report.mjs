@@ -7,11 +7,14 @@ import { mapPool, runCodex } from '../src/executor.mjs';
 import { liveReaderPrompt } from '../src/prompts.mjs';
 import { aggregateReader10, READER10_PERSONAS } from '../src/reader10.mjs';
 import { readJson, writeJson } from '../src/utils.mjs';
-import { describeTarget, evidenceTarget } from './frozen-evidence.mjs';
+import { describeTarget, evidenceTarget, writeEvidence } from './frozen-evidence.mjs';
 
 const root = path.resolve(new URL('..', import.meta.url).pathname);
 const reportFile = path.join(root, 'docs', 'launch-report.html');
-const auditDir = path.join(root, '.relay10', 'launch-audit');
+// Scratch output for the ten reader calls. This used to live under the legacy
+// .relay10/ path, which 0.2.0 removed, so running audit:launch recreated a
+// directory the README says no longer exists.
+const auditDir = path.join(root, 'outputs', 'launch-audit');
 // Resolve the frozen-evidence target before spending ten model calls.
 const liveDestination = evidenceTarget(root, 'docs/launch-reader-live.json');
 const schema = fileURLToPath(new URL('../schema/reader-result.schema.json', import.meta.url));
@@ -60,7 +63,7 @@ const audit = {
   ...aggregateReader10(personas, { minPass: 10 }),
   personas,
 };
-await writeJson(liveDestination.target, audit);
+await writeEvidence(root, liveDestination, `${JSON.stringify(audit, null, 2)}\n`);
 await writeJson(path.join(root, 'outputs', 'relay10-launch-reader-live.json'), audit);
 process.stdout.write(`live audit: ${audit.passedPersonas}/10 readers, ${audit.criticalCount} critical, ${model}/low\n`);
 process.stdout.write(`reader log: ${describeTarget(root, liveDestination)}\n`);

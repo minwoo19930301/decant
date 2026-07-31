@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { evaluateReader10, evaluateReader10Payload } from '../src/reader10.mjs';
 import { generateReport } from '../src/report.mjs';
-import { describeTarget, evidenceTarget } from './frozen-evidence.mjs';
+import { describeTarget, evidenceTarget, writeEvidence } from './frozen-evidence.mjs';
 
 const root = path.resolve(new URL('..', import.meta.url).pathname);
 const outputs = path.join(root, 'outputs');
@@ -390,15 +390,12 @@ const deterministicAudit = {
 // v0.1.1 Relay10 evidence: launch-reader-live.json records a reportSha256 bound
 // to the exact bytes of the HTML. Regenerating in place breaks that binding, so
 // the shared guard writes to outputs/ unless --freeze and
-// REIN_ALLOW_FROZEN_OVERWRITE=1 are both supplied. Regenerating into outputs/
-// is the safe way to check that this script still reproduces the released
-// artifact: compare hashes instead of overwriting it.
-await writeFile(reportDestination.target, final, 'utf8');
-await writeFile(
-  deterministicDestination.target,
-  `${JSON.stringify(deterministicAudit, null, 2)}\n`,
-  'utf8',
-);
+// REIN_ALLOW_FROZEN_OVERWRITE=1 are both supplied. Note that regeneration can no
+// longer byte-reproduce the archive anyway: the report embeds a fresh
+// generatedAt timestamp and src/report.mjs now renders the Rein product name.
+// Compare the two files by content, not by hash.
+await writeEvidence(root, reportDestination, final);
+await writeEvidence(root, deterministicDestination, `${JSON.stringify(deterministicAudit, null, 2)}\n`);
 await writeFile(path.join(outputs, 'relay10-launch-report.html'), final, 'utf8');
 process.stdout.write(`launch report: payload ${payloadGate.passedPersonas}/10, render ${renderAudit.passedPersonas}/10, ${renderAudit.criticalCount} critical\n`);
 process.stdout.write(`report: ${describeTarget(root, reportDestination)}\nreader log: ${describeTarget(root, deterministicDestination)}\n`);

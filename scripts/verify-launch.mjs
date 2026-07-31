@@ -2,7 +2,7 @@ import path from 'node:path';
 
 import { spawnCapture } from '../src/executor.mjs';
 import { writeJson } from '../src/utils.mjs';
-import { describeTarget, evidenceTarget } from './frozen-evidence.mjs';
+import { describeTarget, evidenceTarget, writeEvidence } from './frozen-evidence.mjs';
 
 const root = path.resolve(new URL('..', import.meta.url).pathname);
 
@@ -56,7 +56,7 @@ const log = {
   passed: commands.every((command) => command.passed),
   commands,
 };
-await writeJson(destination.target, log);
+await writeEvidence(root, destination, `${JSON.stringify(log, null, 2)}\n`);
 process.stdout.write(`launch verification: ${commands.filter((command) => command.passed).length}/${commands.length} commands passed\n`);
 process.stdout.write(`log: ${describeTarget(root, destination)}\n`);
 if (!log.passed) process.exitCode = 2;

@@ -161,8 +161,8 @@ See also the full
 
 Rein distills recurring patterns from current global coding agents and
 Agent Skill collections into eight on-demand skills instead of installing a
-large catalog. Skill **ids remain `rein-*`** in this release for host
-compatibility:
+large catalog. Skill ids were renamed from `relay10-*` to **`rein-*`** in
+`0.2.0`; a host that installed the `v0.1.1` pack must reinstall it:
 
 | Skill | Job | Important boundary |
 |---|---|---|
@@ -254,8 +254,8 @@ facility, or proof that remote model behavior can be reproduced.
 
 ## Configuration
 
-`rein init` writes the compatibility filename
-`rein.config.json`. Model roles are derived from
+`rein init` writes `rein.config.json`, which is the only name the CLI reads.
+Model roles are derived from
 `codex debug models`; explicit model overrides take precedence. See the
 [example configuration](https://github.com/minwoo19930301/rein/blob/main/examples/rein.config.json)
 and [configuration schema](https://github.com/minwoo19930301/rein/blob/main/schema/config.schema.json).

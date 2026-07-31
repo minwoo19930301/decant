@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -9,6 +10,7 @@ import {
   describeTarget,
   evidenceTarget,
   FROZEN_EVIDENCE,
+  writeEvidence,
 } from '../scripts/frozen-evidence.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -67,4 +69,54 @@ test('the released reader log is still bound to the released report bytes', asyn
     await readFile(path.join(ROOT, 'docs', 'launch-reader-live.json'), 'utf8'),
   );
   assert.equal(createHash('sha256').update(html).digest('hex'), live.reportSha256);
+});
+
+// Both bypasses below were reproduced by independent auditors against an
+// earlier guard that only checked the pathname, so they are regression tests,
+// not hypotheticals.
+
+test('a symlink at the destination cannot redirect the write', async (t) => {
+  const sandbox = await mkdtemp(path.join(tmpdir(), 'rein-evidence-'));
+  t.after(() => rm(sandbox, { recursive: true, force: true }));
+  const archive = path.join(sandbox, 'docs', 'launch-report.html');
+  await mkdir(path.join(sandbox, 'docs'), { recursive: true });
+  await mkdir(path.join(sandbox, 'outputs'), { recursive: true });
+  await writeFile(archive, 'RELEASED', 'utf8');
+  await symlink(path.join('..', 'docs', 'launch-report.html'), path.join(sandbox, 'outputs', 'launch-report.html'));
+
+  const destination = evidenceTarget(sandbox, 'docs/launch-report.html', { argv: [], env: {} });
+  await assert.rejects(
+    () => writeEvidence(sandbox, destination, 'OVERWRITTEN'),
+    /refusing to write evidence through the symlink/,
+  );
+  assert.equal(await readFile(archive, 'utf8'), 'RELEASED');
+});
+
+test('a symlinked outputs directory cannot redirect the write', async (t) => {
+  const sandbox = await mkdtemp(path.join(tmpdir(), 'rein-evidence-'));
+  t.after(() => rm(sandbox, { recursive: true, force: true }));
+  const archive = path.join(sandbox, 'docs', 'launch-verification.json');
+  await mkdir(path.join(sandbox, 'docs'), { recursive: true });
+  await writeFile(archive, 'RELEASED', 'utf8');
+  await symlink('docs', path.join(sandbox, 'outputs'));
+
+  const destination = evidenceTarget(sandbox, 'docs/launch-verification.json', { argv: [], env: {} });
+  await assert.rejects(
+    () => writeEvidence(sandbox, destination, 'OVERWRITTEN'),
+    /physically resolves to/,
+  );
+  assert.equal(await readFile(archive, 'utf8'), 'RELEASED');
+});
+
+test('an ordinary write lands in outputs and leaves the archive alone', async (t) => {
+  const sandbox = await mkdtemp(path.join(tmpdir(), 'rein-evidence-'));
+  t.after(() => rm(sandbox, { recursive: true, force: true }));
+  const archive = path.join(sandbox, 'docs', 'launch-report.html');
+  await mkdir(path.join(sandbox, 'docs'), { recursive: true });
+  await writeFile(archive, 'RELEASED', 'utf8');
+
+  const destination = evidenceTarget(sandbox, 'docs/launch-report.html', { argv: [], env: {} });
+  await writeEvidence(sandbox, destination, 'REGENERATED');
+  assert.equal(await readFile(path.join(sandbox, 'outputs', 'launch-report.html'), 'utf8'), 'REGENERATED');
+  assert.equal(await readFile(archive, 'utf8'), 'RELEASED');
 });
