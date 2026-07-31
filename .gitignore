@@ -1,6 +1,10 @@
 node_modules/
 .rein/
+# scripts/audit-launch-report.mjs is frozen v0.1.1 evidence tooling and still
+# writes its scratch output to the legacy path.
+.relay10/
 /rein.config.json
+/relay10.config.json
 coverage/
 .DS_Store
 work/

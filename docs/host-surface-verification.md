@@ -11,8 +11,10 @@ Verification date: **2026-07-15**
 The rename branch preserves the verified technical ids and paths while changing
 the product display name. On the branch, `npm test` passed 95/95 tests,
 `npm run lint` passed, `npm run validate:skills` passed all eight skills, and
-`npm run verify:package` installed the packed `rein@0.2.0` artifact
-and exercised the `rein`, `rein`, and `rein` help entry points.
+`npm run verify:package` installed the packed artifact and exercised the four
+CLI help entry points that existed at the time (`disciplinedrun`, `dpr`, `r10`,
+`relay10`). Those aliases were removed in the `0.2.0` Rein rename, which
+exposes only `rein`.
 
 The Claude CLI was not available on `PATH` in this isolated verifier, so the
 2026-07-15 Claude host check below remains the latest live Claude-plugin
