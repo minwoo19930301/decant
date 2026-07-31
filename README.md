@@ -52,6 +52,51 @@ find out mid-edit. That decision is the product.
 
 When you run it for real, you get a folder of files and a `report.html`.
 
+## What one real run costs
+
+A throwaway repo: a `listUsers()` that returns all 57 users, and one test.
+Task: *"add limit and offset pagination to listUsers, and cover it with a test."*
+Backend: Kiro CLI, Sonnet for the working stages, Haiku for the cheap ones.
+
+```console
+$ decant run "add limit and offset pagination to listUsers, and cover it with a test" \
+    --allow-verification-commands --budget-calls 6
+Run warn: .decant/runs/20260731T052055193Z-552ca062
+```
+
+| | |
+|---|---|
+| wall clock | **183 s** |
+| agent launches | **5** of a 6 budget |
+| files changed | `users.mjs` (+6 −2), `users.test.mjs` (+19) |
+| the repo's own tests | 1 test → **5 tests, all passing** |
+| verification | pass — `npm test` exited 0 |
+| reviewer | pass |
+| report clarity | 8/10 personas, 0 critical |
+| status | `warn` |
+
+What it wrote:
+
+```diff
+-export function listUsers() {
+-  return USERS;
++export function listUsers({ limit = USERS.length, offset = 0 } = {}) {
++  const start = Math.max(0, offset);
++  const end = start + Math.max(0, limit);
++  return USERS.slice(start, end);
+ }
+```
+
+…plus tests for offset beyond the end, a negative offset, and no limit given.
+
+`warn`, not `pass`, because the generated report only reached 8 of 10 clarity
+personas. The code is fine and the tests pass — that is the point of keeping the
+signals apart. **Three minutes and five model calls** is the honest ballpark for
+a task this size; `--budget-calls` is what stops it being more.
+
+No token or currency figure, because Decant cannot see either. Your provider's
+dashboard can.
+
 ---
 
 ## What we took, and from where
