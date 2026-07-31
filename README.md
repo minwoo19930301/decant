@@ -34,7 +34,8 @@ Rein picked the cheapest, weakest, or strongest available model.
 This branch prepares the `0.2.0` rename release. The latest tagged release
 remains `v0.1.1` under the former **Relay10** name; `v0.1.1` launch evidence
 under `docs/launch-*` deliberately keeps the old names so its recorded hashes
-still verify. Nothing was published to npm under `relay10` or `disciplinedrun`.
+still verify, and `verify:launch` / `report:launch` / `audit:launch` now write
+to `outputs/` instead of overwriting it. Nothing was published to npm under `relay10` or `disciplinedrun`.
 
 Single CLI: **`rein`**. Config `rein.config.json`, run dir `.rein/`, skill ids
 `rein-*`. The old `relay10` / `r10` / `dpr` / `disciplinedrun` commands and the

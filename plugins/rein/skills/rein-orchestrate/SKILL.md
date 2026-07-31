@@ -11,7 +11,7 @@ Coordinate the other Rein skills without turning every request into a large proc
 
 1. Restate the requested outcome, constraints, and forbidden actions.
 2. Inspect the repository and current git state before proposing edits.
-3. If the CLI is available, run `rein doctor` and preview routing with `rein route "<task>" --json` (`rein` remains a legacy alias).
+3. If the CLI is available, run `rein doctor` and preview routing with `rein route "<task>" --json`.
 4. Treat `rein run "<task>" --dry-run` as a preview. Run a mutating pipeline only when the user authorized implementation.
 
 This skill helps choose a workflow. It does not change the model of the host agent's current task, whether that host is Codex or Claude Code, and does not make unsupported providers available.

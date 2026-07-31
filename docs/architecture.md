@@ -8,8 +8,8 @@ database. A run writes inspectable artifacts beneath `.rein/runs/<id>/`.
 ## Current Codex runtime coupling
 
 Version 0.1.1 is intentionally, and concretely, Codex-runtime-only. The 0.2
-preview uses `rein` as the primary command while keeping the v0.1
-`rein` name as a legacy alias:
+preview renames the single command to `rein` and removes the v0.1 `relay10` /
+`r10` names rather than keeping them as aliases:
 
 - `src/executor.mjs` starts `codex exec` for every model stage;
 - `src/catalog.mjs` discovers models with `codex debug models`;
@@ -113,9 +113,8 @@ The list is an execution-artifact contract, not a complete audit ledger. A
 completed run hashes its files so `replay --frozen` can reject missing or
 changed artifacts and copy the already-saved report without model calls.
 `rein report` is the separate model-free re-render path and never
-overwrites the frozen report. The legacy `rein report` alias has the same
-behavior. Neither command resumes a run or recreates its original machine,
-toolchain, hooks, credentials, or remote model service.
+overwrites the frozen report. Neither command resumes a run or recreates its
+original machine, toolchain, hooks, credentials, or remote model service.
 
 ## Process and safety boundary
 
@@ -152,8 +151,7 @@ not merely after a text response succeeds.
 
 For app surfaces:
 
-- a Skill can document and call `rein route/run/inspect` (or the
-  legacy `rein` alias), but cannot by itself
+- a Skill can document and call `rein route/run/inspect`, but cannot by itself
   force the current Codex desktop task to switch models per stage;
 - a Codex Plugin with a local stdio MCP server can expose `route`, `run`,
   `status`, `inspect`, and `report` as app tools while reusing the CLI engine;

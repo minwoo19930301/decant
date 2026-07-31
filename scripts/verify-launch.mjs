@@ -2,8 +2,13 @@ import path from 'node:path';
 
 import { spawnCapture } from '../src/executor.mjs';
 import { writeJson } from '../src/utils.mjs';
+import { describeTarget, evidenceTarget } from './frozen-evidence.mjs';
 
 const root = path.resolve(new URL('..', import.meta.url).pathname);
+
+// Resolve the write target before doing any work so an unsatisfied --freeze
+// guard fails immediately instead of after minutes of subprocesses.
+const destination = evidenceTarget(root, 'docs/launch-verification.json');
 const specifications = [
   { label: 'Node 자동 테스트', command: 'npm', args: ['test'] },
   { label: '전체 JavaScript 문법 검사', command: 'npm', args: ['run', 'lint'] },
@@ -51,15 +56,7 @@ const log = {
   passed: commands.every((command) => command.passed),
   commands,
 };
-// docs/launch-verification.json is the frozen v0.1.1 Relay10 launch evidence and
-// must not be regenerated: rewriting it would replace released evidence with a
-// fresh log. Write to the gitignored outputs/ directory instead, and only touch
-// the archived file when --freeze is passed explicitly.
-const freeze = process.argv.includes('--freeze');
-const target = freeze
-  ? path.join(root, 'docs', 'launch-verification.json')
-  : path.join(root, 'outputs', 'launch-verification.json');
-await writeJson(target, log);
+await writeJson(destination.target, log);
 process.stdout.write(`launch verification: ${commands.filter((command) => command.passed).length}/${commands.length} commands passed\n`);
-process.stdout.write(`log: ${path.relative(root, target)}${freeze ? ' (overwrote frozen v0.1.1 evidence)' : ''}\n`);
+process.stdout.write(`log: ${describeTarget(root, destination)}\n`);
 if (!log.passed) process.exitCode = 2;

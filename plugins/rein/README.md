@@ -1,8 +1,7 @@
 # Rein Plugin
 
-The plugin package id is `rein` and Skill ids are `rein-*` in version
-0.2 so existing host installations continue to resolve them. The npm package
-and primary CLI are `rein`.
+The plugin package id is `rein` and Skill ids are `rein-*` in version 0.2.
+The npm package is `rein-cli` and the installed CLI is `rein`.
 
 This preview bundles eight focused, on-demand skills:
 
@@ -15,7 +14,7 @@ This preview bundles eight focused, on-demand skills:
 - `rein-release`: produce release and artifact proof;
 - `rein-skill-lab`: test triggers and compare a skill with its baseline.
 
-The pack follows the Agent Skills layout with two plugin manifests: `.codex-plugin/plugin.json` for Codex and `.claude-plugin/plugin.json` for Claude Code. It can guide work in Codex, Claude Code, or Grok Build and call an installed `rein` or legacy `rein` CLI, but it does not switch the model of the host's current task, add a provider, or provide a native app UI or MCP server. Rein model stages still launch Codex CLI subprocesses.
+The pack follows the Agent Skills layout with two plugin manifests: `.codex-plugin/plugin.json` for Codex and `.claude-plugin/plugin.json` for Claude Code. It can guide work in Codex, Claude Code, or Grok Build and call an installed `rein` CLI, but it does not switch the model of the host's current task, add a provider, or provide a native app UI or MCP server. Rein model stages still launch Codex CLI subprocesses.
 
 In Claude Code, install the pack from the repository marketplace:
 

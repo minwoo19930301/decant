@@ -7,10 +7,13 @@ import { mapPool, runCodex } from '../src/executor.mjs';
 import { liveReaderPrompt } from '../src/prompts.mjs';
 import { aggregateReader10, READER10_PERSONAS } from '../src/reader10.mjs';
 import { readJson, writeJson } from '../src/utils.mjs';
+import { describeTarget, evidenceTarget } from './frozen-evidence.mjs';
 
 const root = path.resolve(new URL('..', import.meta.url).pathname);
 const reportFile = path.join(root, 'docs', 'launch-report.html');
 const auditDir = path.join(root, '.relay10', 'launch-audit');
+// Resolve the frozen-evidence target before spending ten model calls.
+const liveDestination = evidenceTarget(root, 'docs/launch-reader-live.json');
 const schema = fileURLToPath(new URL('../schema/reader-result.schema.json', import.meta.url));
 await mkdir(auditDir, { recursive: true });
 const reportSha256 = createHash('sha256').update(await readFile(reportFile)).digest('hex');
@@ -57,7 +60,8 @@ const audit = {
   ...aggregateReader10(personas, { minPass: 10 }),
   personas,
 };
-await writeJson(path.join(root, 'docs', 'launch-reader-live.json'), audit);
+await writeJson(liveDestination.target, audit);
 await writeJson(path.join(root, 'outputs', 'relay10-launch-reader-live.json'), audit);
 process.stdout.write(`live audit: ${audit.passedPersonas}/10 readers, ${audit.criticalCount} critical, ${model}/low\n`);
+process.stdout.write(`reader log: ${describeTarget(root, liveDestination)}\n`);
 if (!audit.passed) process.exitCode = 2;
