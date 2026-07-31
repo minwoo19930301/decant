@@ -56,6 +56,11 @@
 - Make `decant doctor` report a structured FAIL with PATH guidance when the Codex
   CLI is missing, instead of crashing on `spawn codex ENOENT`.
 - Format top-level CLI errors for missing executables with the same guidance.
+- Add an opt-in/automatic short-task fast lane with an overall time budget,
+  maker-first execution, medium effort caps, a declared primary-artifact
+  content gate, deterministic reporting, and safety fallback to the full lane.
+- Teach the host skills to prefer a runnable source slice over broad test-first
+  work under an explicit deadline, with a lower-effort fast lane for 15-minute-or-shorter work.
 
 ## 0.1.1 - 2026-07-13
 

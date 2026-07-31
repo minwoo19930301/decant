@@ -7,6 +7,10 @@ const DIMENSIONS = Object.freeze([
 ]);
 
 const ADVISOR_MODES = Object.freeze(["conditional", "always", "never"]);
+const LANES = Object.freeze(["auto", "fast", "full"]);
+const AUTO_FAST_MAX_MINUTES = 15;
+const FIRST_ARTIFACT_RATIO = 0.3;
+const FIRST_ARTIFACT_MAX_MS = 300_000;
 
 const PATTERNS = Object.freeze({
   complex: /architect|architecture|distributed|concurren|multi[- ]?(service|repo|step)|refactor|redesign|migration|migrate|아키텍처|동시성|분산|멀티|리팩터|마이그레이션/i,
@@ -142,9 +146,108 @@ function advisorActivation(assessment, requestedMode) {
   };
 }
 
+function timeBudgetMinutes(value) {
+  if (value === undefined || value === null) return null;
+  const number = typeof value === "number" ? value : Number(value);
+  if (!Number.isInteger(number) || number < 1 || number > 1_440) {
+    throw new RangeError("timeBudgetMinutes must be a positive integer no greater than 1440");
+  }
+  return number;
+}
+
+function primaryArtifact(value) {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "string" || !value.trim()) {
+    throw new TypeError("firstArtifact must be a non-empty relative path");
+  }
+  const normalized = value.trim().replaceAll("\\", "/");
+  const cleaned = normalized.replace(/^(?:\.\/)+/, "");
+  const segments = cleaned.split("/");
+  const internalSegment = segments.some((segment) => [".git", ".decant", ".rein", ".relay10", "node_modules"].includes(segment.toLowerCase()));
+  if (
+    normalized.includes("\0")
+    || cleaned.startsWith("/")
+    || /^[a-z]:/i.test(cleaned)
+    || segments.includes("..")
+    || internalSegment
+    || segments.every((segment) => !segment || segment === ".")
+  ) {
+    throw new TypeError("firstArtifact must stay inside the workspace");
+  }
+  return cleaned;
+}
+
+function lanePolicy(assessment, options) {
+  const requestedLane = options.lane ?? "auto";
+  if (!LANES.includes(requestedLane)) {
+    throw new RangeError(`lane must be one of: ${LANES.join(", ")}`);
+  }
+  const minutes = timeBudgetMinutes(options.timeBudgetMinutes);
+  const firstArtifact = primaryArtifact(options.firstArtifact);
+  const safeForFast = !assessment.readOnly
+    && assessment.risk <= 1
+    && assessment.blastRadius <= 1
+    && assessment.reversibility >= 2
+    && assessment.verifiability >= 2;
+
+  if (requestedLane === "fast") {
+    if (minutes === null) throw new RangeError("fast lane requires timeBudgetMinutes");
+    if (minutes > AUTO_FAST_MAX_MINUTES) {
+      throw new RangeError(`fast lane requires timeBudgetMinutes no greater than ${AUTO_FAST_MAX_MINUTES}`);
+    }
+    if (!firstArtifact) throw new RangeError("fast lane requires firstArtifact");
+    if (!safeForFast) {
+      throw new RangeError("fast lane is unavailable for this task's safety profile; use the full lane or narrow the task");
+    }
+    return {
+      requestedLane,
+      lane: "fast",
+      reasonCode: "explicit-fast-lane",
+      timeBudgetMinutes: minutes,
+      firstArtifact,
+      firstArtifactRatio: FIRST_ARTIFACT_RATIO,
+      firstArtifactMaxMs: FIRST_ARTIFACT_MAX_MS,
+    };
+  }
+
+  if (requestedLane === "full") {
+    return {
+      requestedLane,
+      lane: "full",
+      reasonCode: "explicit-full-lane",
+      timeBudgetMinutes: minutes,
+      firstArtifact,
+    };
+  }
+
+  const useFast = minutes !== null
+    && minutes <= AUTO_FAST_MAX_MINUTES
+    && Boolean(firstArtifact)
+    && safeForFast;
+  let reasonCode = "no-time-budget";
+  if (useFast) reasonCode = "short-safe-budget";
+  else if (minutes !== null && minutes > AUTO_FAST_MAX_MINUTES) reasonCode = "budget-allows-full-lane";
+  else if (minutes !== null && !safeForFast) reasonCode = "safety-requires-full-lane";
+  else if (minutes !== null && !firstArtifact) reasonCode = "primary-artifact-not-declared";
+
+  return {
+    requestedLane,
+    lane: useFast ? "fast" : "full",
+    reasonCode,
+    timeBudgetMinutes: minutes,
+    firstArtifact,
+    ...(useFast ? {
+      firstArtifactRatio: FIRST_ARTIFACT_RATIO,
+      firstArtifactMaxMs: FIRST_ARTIFACT_MAX_MS,
+    } : {}),
+  };
+}
+
 export function routeTask(task, options = {}) {
   const assessment = assessTask(task, options);
-  const advisor = advisorActivation(assessment, options.advisorMode);
+  const lane = lanePolicy(assessment, options);
+  const fast = lane.lane === "fast";
+  const advisor = advisorActivation(assessment, fast ? "never" : options.advisorMode);
   const reportEnabled = options.report !== false;
   const jurySize = clampPositiveInteger(options.jurySize ?? 10, "jurySize");
   const quorum = clampPositiveInteger(options.quorum ?? Math.ceil(jurySize * 0.9), "quorum");
@@ -155,9 +258,10 @@ export function routeTask(task, options = {}) {
 
   const stages = [
     contract("scout", "Gather evidence and read source material.", "economy", "low", "read", {
-      enabled: true,
+      enabled: !fast,
       writes: false,
       output: "evidence",
+      reasonCode: fast ? "deadline-fast-lane" : null,
     }),
     contract("architect", "Advise on non-obvious scope, risk, and direction after evidence gathering.", "frontier", "max", "plan", {
       enabled: advisor.activation !== "never",
@@ -174,16 +278,19 @@ export function routeTask(task, options = {}) {
       enabled: !assessment.readOnly,
       writes: true,
       output: "changes",
+      ...(fast ? { effortCap: "medium", reasonCode: "deadline-fast-lane" } : {}),
     }),
     contract("reviewer", "Verify correctness, safety, and acceptance criteria.", "frontier", reviewerEffort, "verify", {
       enabled: true,
       writes: false,
       output: "review",
+      ...(fast ? { effortCap: "medium", reasonCode: "deadline-fast-lane" } : {}),
     }),
     contract("explainer", "Create the final human-facing HTML explanation.", "balanced", "low", "report", {
-      enabled: reportEnabled,
+      enabled: reportEnabled && !fast,
       writes: true,
       output: "html",
+      reasonCode: fast ? "deterministic-fast-lane-summary" : null,
     }),
     contract("reader", "Judge whether the report is understandable without hidden context.", "economy", "low", "read", {
       enabled: reportEnabled,
@@ -197,7 +304,7 @@ export function routeTask(task, options = {}) {
 
   return {
     assessment,
-    policy: { version: 1, advisorMode: advisor.advisorMode },
+    policy: { version: 1, advisorMode: advisor.advisorMode, ...lane },
     stages,
     byId: Object.fromEntries(stages.map((stage) => [stage.id, stage])),
   };

@@ -120,6 +120,22 @@ test('strict parser keeps boolean flags separate from following positional argum
       flags: { budgetCalls: '12', dryRun: true },
     },
   );
+  assert.deepEqual(
+    parseCommandLine([
+      'route', '--lane', 'fast', '--time-budget-minutes', '10',
+      '--first-artifact', 'src/cli.mjs', '--json', 'build', 'a', 'CLI',
+    ]),
+    {
+      command: 'route',
+      positionals: ['build', 'a', 'CLI'],
+      flags: {
+        lane: 'fast',
+        timeBudgetMinutes: '10',
+        firstArtifact: 'src/cli.mjs',
+        json: true,
+      },
+    },
+  );
 });
 
 test('strict parser rejects unknown, duplicate, missing-value, and boolean-value options', () => {
@@ -350,7 +366,13 @@ test('an authorized run passes verification consent and the validated budget to 
   let received;
   const code = await main([
     'run',
-    'task',
+    'Implement a local helper',
+    '--lane',
+    'fast',
+    '--time-budget-minutes',
+    '10',
+    '--first-artifact',
+    'src/helper.mjs',
     '--allow-verification-commands',
     '--budget-calls',
     '7',
@@ -370,6 +392,9 @@ test('an authorized run passes verification consent and the validated budget to 
   assert.equal(code, 3); // warn: nothing proven, not a failure
   assert.equal(received.allowVerificationCommands, true);
   assert.equal(received.budgetCalls, 7);
+  assert.equal(received.route.policy.lane, 'fast');
+  assert.equal(received.route.policy.timeBudgetMinutes, 10);
+  assert.equal(received.route.policy.firstArtifact, 'src/helper.mjs');
 });
 
 test('report defaults to a regenerated file and leaves the original immutable', async () => {

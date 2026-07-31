@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, open } from 'node:fs/promises';
+import { mkdir, mkdtemp, open, symlink } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -36,6 +36,211 @@ test('buildRunPlan counts deterministic and live reader calls', () => {
   assert.equal(live.callEstimate.maximum, 26);
   assert.equal(deterministic.stages.find((stage) => stage.id === 'architect').effort, 'max');
   assert.equal(deterministic.stages.find((stage) => stage.id === 'architect').activation, 'conditional');
+});
+
+test('fast-lane plans put the maker first, cap effort, and avoid live reader fanout', () => {
+  const route = routeTask(task, {
+    lane: 'fast',
+    timeBudgetMinutes: 10,
+    firstArtifact: 'src/cli.mjs',
+  });
+  const config = structuredClone(DEFAULT_CONFIG);
+  for (const stage of Object.keys(config.effort)) config.effort[stage] = 'ultra';
+  const broadCatalog = {
+    roles: Object.fromEntries(Object.entries(catalog.roles).map(([role, value]) => [role, {
+      ...value,
+      supportedEfforts: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+    }])),
+  };
+
+  const plan = buildRunPlan({ task, route, catalog: broadCatalog, config });
+  assert.equal(plan.routingPolicy.lane, 'fast');
+  assert.equal(plan.callEstimate.minimum, 2);
+  assert.equal(plan.callEstimate.maximum, 2);
+  assert.equal(plan.stages.find((stage) => stage.id === 'maker').effort, 'medium');
+  assert.equal(plan.stages.find((stage) => stage.id === 'maker').requestedEffort, 'ultra');
+  assert.equal(plan.stages.find((stage) => stage.id === 'maker').effortReason, 'deadline-fast-lane');
+  assert.equal(plan.stages.find((stage) => stage.id === 'reviewer').effort, 'medium');
+  assert.throws(
+    () => buildRunPlan({ task, route, catalog: broadCatalog, config, liveReaders: true }),
+    /live readers are not available in the fast lane/,
+  );
+});
+
+test('fast lane makes the maker the first model call and proves the primary artifact changed', async () => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'decant-fast-lane-'));
+  const route = routeTask(task, {
+    lane: 'fast',
+    timeBudgetMinutes: 10,
+    firstArtifact: 'src/cli.mjs',
+  });
+  const calls = [];
+  const fakeCodex = async (options) => {
+    calls.push(options);
+    if (options.outputFile.endsWith('maker.md')) {
+      await writeText(path.join(cwd, 'src', 'cli.mjs'), 'console.log("ready");\n');
+      await writeText(options.outputFile, 'Primary CLI artifact implemented and smoke-ready.');
+    } else if (options.outputFile.endsWith('reviewer.json')) {
+      await writeText(options.outputFile, JSON.stringify({
+        verdict: 'pass', summary: 'Primary artifact exists.', findings: [],
+        acceptance_checks: [{ criterion: 'Primary artifact changed', passed: true, evidence: 'src/cli.mjs' }],
+      }));
+    } else {
+      throw new Error(`unexpected fast-lane model call: ${options.outputFile}`);
+    }
+    return { code: 0, durationMs: 1, stdout: '', stderr: '' };
+  };
+
+  const result = await runPipeline({
+    task,
+    cwd,
+    config: structuredClone(DEFAULT_CONFIG),
+    catalog,
+    route,
+    runCodexImpl: fakeCodex,
+    monotonicNow: () => 0,
+  });
+
+  assert.equal(calls.length, 2);
+  assert.match(calls[0].outputFile, /maker\.md$/);
+  assert.match(calls[1].outputFile, /reviewer\.json$/);
+  assert.equal(calls[0].timeoutMs, 180_000);
+  assert.equal(result.manifest.gates.firstArtifact.passed, true);
+  assert.equal(result.manifest.gates.firstArtifact.path, 'src/cli.mjs');
+  assert.equal(result.manifest.routingPolicy.lane, 'fast');
+  assert.equal(result.manifest.stages.scout.status, 'skipped');
+  assert.equal(result.manifest.stages.architect.status, 'skipped');
+  assert.equal(result.manifest.stages.explainer.status, 'skipped');
+  assert.match(await readText(path.join(result.runDir, 'summary.md')), /Fast-lane run/);
+});
+
+test('fast lane stops when the declared primary artifact did not change', async () => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'decant-fast-gate-'));
+  await writeText(path.join(cwd, 'src', 'cli.mjs'), 'console.log("old");\n');
+  const route = routeTask(task, {
+    lane: 'fast',
+    timeBudgetMinutes: 10,
+    firstArtifact: 'src/cli.mjs',
+  });
+  const fixedRunId = '20260718T000000000Z-feedface';
+
+  await assert.rejects(
+    runPipeline({
+      task,
+      cwd,
+      config: structuredClone(DEFAULT_CONFIG),
+      catalog,
+      route,
+      idFactory: () => fixedRunId,
+      monotonicNow: () => 0,
+      runCodexImpl: async ({ outputFile }) => {
+        await writeText(outputFile, 'I only described the intended implementation.');
+        return { code: 0, durationMs: 1, stdout: '', stderr: '' };
+      },
+    }),
+    /first artifact did not change/,
+  );
+
+  const manifest = await readJson(path.join(cwd, '.decant', 'runs', fixedRunId, 'run.json'));
+  assert.equal(manifest.status, 'error');
+  assert.equal(manifest.gates.firstArtifact.passed, false);
+  assert.equal(manifest.calls.used, 1);
+  assert.equal(manifest.stages.reviewer, undefined);
+});
+
+test('the first-artifact gate rejects paths that resolve outside the workspace', async () => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'decant-artifact-root-'));
+  const outside = await mkdtemp(path.join(os.tmpdir(), 'decant-artifact-outside-'));
+  await symlink(outside, path.join(cwd, 'src'), 'dir');
+  const route = routeTask(task, {
+    lane: 'fast',
+    timeBudgetMinutes: 10,
+    firstArtifact: 'src/cli.mjs',
+  });
+
+  await assert.rejects(
+    runPipeline({
+      task,
+      cwd,
+      config: structuredClone(DEFAULT_CONFIG),
+      catalog,
+      route,
+      runCodexImpl: async () => { throw new Error('must not execute'); },
+    }),
+    /first artifact resolves outside the workspace/,
+  );
+});
+
+test('the pipeline rejects case aliases of its own state as first artifacts', async () => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'decant-artifact-internal-'));
+  const route = routeTask(task, {
+    lane: 'fast',
+    timeBudgetMinutes: 10,
+    firstArtifact: 'src/cli.mjs',
+  });
+  route.policy.firstArtifact = '.RELAY10/workspace.lock';
+
+  await assert.rejects(
+    runPipeline({
+      task,
+      cwd,
+      config: structuredClone(DEFAULT_CONFIG),
+      catalog,
+      route,
+      runCodexImpl: async () => { throw new Error('must not execute'); },
+    }),
+    /outside internal state directories/,
+  );
+});
+
+test('the overall time budget caps each remaining stage instead of resetting per call', async () => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'decant-deadline-'));
+  const route = routeTask(task, { lane: 'full', timeBudgetMinutes: 1 });
+  const fixedRunId = '20260718T000000000Z-deadfeed';
+  const calls = [];
+  let elapsed = 0;
+  const fakeCodex = async (options) => {
+    calls.push(options);
+    if (options.outputFile.endsWith('scout.json')) {
+      await writeText(options.outputFile, JSON.stringify({
+        summary: 'Workspace inspected.', facts: ['Local project'],
+        evidence: [{ title: 'package.json', url: 'package.json', excerpt: 'scripts' }],
+        open_questions: [],
+      }));
+      elapsed = 59_000;
+    } else if (options.outputFile.endsWith('maker.md')) {
+      await writeText(options.outputFile, 'Implementation slice written.');
+      elapsed = 60_000;
+    } else {
+      throw new Error('a stage started after the overall deadline');
+    }
+    return { code: 0, durationMs: 1, stdout: '', stderr: '' };
+  };
+
+  await assert.rejects(
+    runPipeline({
+      task,
+      cwd,
+      config: structuredClone(DEFAULT_CONFIG),
+      catalog,
+      route,
+      runCodexImpl: fakeCodex,
+      monotonicNow: () => elapsed,
+      idFactory: () => fixedRunId,
+    }),
+    /run time budget exhausted/,
+  );
+
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].timeoutMs, 60_000);
+  assert.equal(calls[1].timeoutMs, 1_000);
+  const manifest = await readJson(path.join(cwd, '.decant', 'runs', fixedRunId, 'run.json'));
+  assert.equal(manifest.calls.used, 2);
+  assert.equal(manifest.error.code, 'DPR_TIME_BUDGET_EXHAUSTED');
+  assert.match(
+    await readText(path.join(cwd, '.decant', 'runs', fixedRunId, 'events.jsonl')),
+    /run\.deadline\.exhausted/,
+  );
 });
 
 test('runPipeline completes with injected model execution and writes a frozen report', async () => {

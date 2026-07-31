@@ -16,6 +16,17 @@ Coordinate the other Decant skills without turning every request into a large pr
 
 This skill helps choose a workflow. It does not change the model of the host agent's current task, whether that host is Codex or Claude Code, and does not make unsupported providers available.
 
+## Hard-deadline progress gate
+
+Use this gate whenever the user gives an explicit deadline and the work is low risk. For a budget of 15 minutes or less, treat it as a fast lane and recommend medium-or-lower host effort before starting. This skill cannot change the host model or effort and cannot enforce a wall-clock timer.
+
+1. Deliver a runnable primary implementation slice by 30% of the budget, capped at five minutes.
+2. Run a narrow smoke check, then core tests.
+3. Expand behavior and documentation only with the remaining time.
+4. Stop expansion when the final 20% begins; use that time to verify and report honestly.
+
+Tests, plans, or documentation alone do not satisfy the first progress gate. Security-sensitive, deployment, destructive, irreversible, or otherwise high-risk work never qualifies for this shortcut; use the normal risk-proportionate workflow without weakening its safety gates.
+
 ## Choose the smallest path
 
 - Read-only evidence gathering: use `decant-research` only.

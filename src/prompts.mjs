@@ -6,8 +6,11 @@ export function architectPrompt(task, runDir, assessment) {
   return `You are a focused frontier advisor called after initial evidence gathering.\n\nTask: ${task}\nScout artifact: ${runDir}/scout.json\nRisk assessment: ${JSON.stringify(assessment)}\n\nRead the scout artifact and inspect the workspace as needed. Resolve only the non-obvious scope, risk, or direction questions that justify this consult, then produce a concise executable plan with acceptance checks and rollback. Do not modify files. Avoid repeating obvious evidence. Your final response becomes ${runDir}/architect.md.`;
 }
 
-export function makerPrompt(task, runDir) {
-  return `You are the maker.\n\nTask: ${task}\nPlan or advisor decision: ${runDir}/architect.md\nEvidence: ${runDir}/scout.json\n\nImplement the requested in-scope change in the workspace. If architect.md starts with "고급 조언 생략", use the task and scout evidence to make the smallest direct plan instead of inventing missing requirements. Keep the solution small. Run relevant deterministic checks, do not publish or deploy, and report changed files plus verification. Your final response becomes ${runDir}/maker.md.`;
+export function makerPrompt(task, runDir, options = {}) {
+  const fastLane = options.fastLane
+    ? `\n\nFAST-LANE CONTRACT (hard wall-clock budget):\n- Your primary implementation artifact is ${options.firstArtifact}. Create or materially change that non-empty source file before anything broad.\n- The first-artifact window is ${options.firstArtifactDeadlineMs} ms. This invocation is terminated when that window expires.\n- Work in this order: smallest runnable vertical slice, one narrow smoke check, core tests, then optional expansion or documentation.\n- A plan, test-only change, documentation-only change, or TODO does not satisfy the first-artifact gate.\n- Do not start a broad test suite, extra research, extra agents, or polish before the primary source slice exists.\n- Preserve partial work honestly; never claim the artifact ran unless a recorded command proved it.`
+    : '';
+  return `You are the maker.\n\nTask: ${task}\nPlan or advisor decision: ${runDir}/architect.md\nEvidence: ${runDir}/scout.json${fastLane}\n\nImplement the requested in-scope change in the workspace. If architect.md starts with "고급 조언 생략", use the task and scout evidence to make the smallest direct plan instead of inventing missing requirements. Keep the solution small. Run relevant deterministic checks, do not publish or deploy, and report changed files plus verification. Your final response becomes ${runDir}/maker.md.`;
 }
 
 /**

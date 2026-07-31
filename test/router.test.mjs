@@ -104,3 +104,86 @@ test("report and jury options adjust reader contracts without changing assessmen
   assert.equal(custom.byId.reader.maxRounds, 1);
   assert.throws(() => routeTask("Task", { jurySize: 2, quorum: 3 }), /quorum cannot exceed jurySize/);
 });
+
+test("a short, reversible task with a primary artifact uses the fast lane", () => {
+  const route = routeTask("Implement a small local CLI and add a smoke check.", {
+    lane: "auto",
+    timeBudgetMinutes: 10,
+    firstArtifact: "src/cli.mjs",
+  });
+
+  assert.equal(route.policy.requestedLane, "auto");
+  assert.equal(route.policy.lane, "fast");
+  assert.equal(route.policy.timeBudgetMinutes, 10);
+  assert.equal(route.policy.firstArtifact, "src/cli.mjs");
+  assert.equal(route.policy.reasonCode, "short-safe-budget");
+  assert.equal(route.policy.advisorMode, "never");
+  assert.equal(route.byId.scout.enabled, false);
+  assert.equal(route.byId.architect.enabled, false);
+  assert.equal(route.byId.maker.enabled, true);
+  assert.equal(route.byId.maker.effortCap, "medium");
+  assert.equal(route.byId.reviewer.effortCap, "medium");
+  assert.equal(route.byId.explainer.enabled, false);
+  assert.equal(route.byId.reader.enabled, true);
+});
+
+test("short budgets do not weaken high-risk work", () => {
+  const automatic = routeTask("Deploy a database schema migration to production.", {
+    lane: "auto",
+    timeBudgetMinutes: 10,
+    firstArtifact: "migrations/001.sql",
+  });
+  assert.equal(automatic.policy.lane, "full");
+  assert.equal(automatic.policy.reasonCode, "safety-requires-full-lane");
+  assert.equal(automatic.byId.scout.enabled, true);
+  assert.equal(automatic.byId.architect.enabled, true);
+
+  assert.throws(
+    () => routeTask("Delete production data.", {
+      lane: "fast",
+      timeBudgetMinutes: 10,
+      firstArtifact: "scripts/delete.mjs",
+    }),
+    /fast lane is unavailable for this task's safety profile/,
+  );
+});
+
+test("fast-lane inputs are explicit and strictly validated", () => {
+  assert.throws(() => routeTask("Implement a helper.", { lane: "quick" }), /lane must be one of/);
+  assert.throws(
+    () => routeTask("Implement a helper.", { lane: "fast", firstArtifact: "src/helper.mjs" }),
+    /fast lane requires timeBudgetMinutes/,
+  );
+  assert.throws(
+    () => routeTask("Implement a helper.", { lane: "fast", timeBudgetMinutes: 10 }),
+    /fast lane requires firstArtifact/,
+  );
+  assert.throws(
+    () => routeTask("Implement a helper.", { timeBudgetMinutes: "10m" }),
+    /timeBudgetMinutes must be a positive integer/,
+  );
+  assert.throws(
+    () => routeTask("Implement a helper.", {
+      lane: "fast", timeBudgetMinutes: 10, firstArtifact: "../outside.mjs",
+    }),
+    /firstArtifact must stay inside the workspace/,
+  );
+  assert.throws(
+    () => routeTask("Implement a helper.", {
+      lane: "fast", timeBudgetMinutes: 10, firstArtifact: ".RELAY10/workspace.lock",
+    }),
+    /firstArtifact must stay inside the workspace/,
+  );
+  assert.throws(
+    () => routeTask("Implement a helper.", {
+      lane: "fast", timeBudgetMinutes: 16, firstArtifact: "src/helper.mjs",
+    }),
+    /no greater than 15/,
+  );
+  assert.throws(
+    () => routeTask("Implement a helper.", {
+      lane: "fast", timeBudgetMinutes: 10, firstArtifact: "C:outside.mjs",
+    }),
+    /firstArtifact must stay inside the workspace/,
+  );
+});
