@@ -102,5 +102,9 @@ Decant does *not* make, so nobody has to discover it the hard way.
 - The `v0.1.1` evidence under `docs/launch-*` deliberately keeps the old names so
   its recorded hashes still verify. `verify:launch`, `report:launch`, and
   `audit:launch` write to `outputs/` and refuse to overwrite it.
-- Every pipeline test injects a fake backend. There is no repository-contained
-  proof of a live end-to-end run against a real agent CLI.
+- Every pipeline test injects a fake backend, so the automated suite proves
+  behaviour and regressions, not that a real agent CLI still works. A live
+  end-to-end run against the Kiro CLI was done by hand on 2026-07-31 — it found
+  two bugs, both since fixed and covered by tests — but that run is not part of
+  the suite and is not re-executed on demand. There is no recorded, repeatable
+  live-backend check.
