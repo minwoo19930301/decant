@@ -25,6 +25,7 @@ import { routeTask } from './router.mjs';
 import { assessReviewer, REVIEWER_SCHEMA } from './pipeline.mjs';
 import { standaloneReviewerPrompt } from './prompts.mjs';
 import { checkAgainstContract, loadContract, renderContract } from './contract.mjs';
+import { collectHistory, estimatePlan, formatEstimate } from './estimate.mjs';
 import {
   ensureDir,
   exists,
@@ -259,9 +260,9 @@ export function requireVerificationOptIn(config, flags) {
   }
 }
 
-function printRoute(plan, asJson, stdout) {
+function printRoute(plan, asJson, stdout, estimate = null) {
   if (asJson) {
-    stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
+    stdout.write(`${JSON.stringify(estimate ? { ...plan, estimate } : plan, null, 2)}\n`);
     return;
   }
   stdout.write(`Assessment: ${plan.assessment.role} (score ${plan.assessment.score})\n`);
@@ -287,6 +288,10 @@ function printRoute(plan, asJson, stdout) {
   }
   const readerMode = plan.callEstimate.readerMode ?? (plan.liveReaders ? 'live' : 'deterministic');
   stdout.write(`Agent invocations: ${plan.callEstimate.minimum}..${plan.callEstimate.maximum} (${readerMode} readers)\n`);
+  if (estimate) {
+    stdout.write(`Estimated cost: ${formatEstimate(estimate)}\n`);
+    for (const line of estimate.excluded) stdout.write(`  excludes ${line}\n`);
+  }
 }
 
 function pathIsWithin(parent, candidate) {
@@ -522,16 +527,20 @@ export async function main(argv = process.argv.slice(2), context = {}) {
     const liveReaders = Boolean(flags.liveReaders || config.readerGate?.mode === 'live');
     const pipeline = await pipelineModule(context.pipeline);
     const plan = pipeline.buildRunPlan({ task, route, catalog, config, liveReaders });
+    // Calibrated from this workspace's own recorded runs, so the number improves
+    // with use instead of staying a guess baked into the source.
+    const history = await collectHistory(path.resolve(cwd, '.decant', 'runs'));
+    const estimate = estimatePlan(plan, history);
 
     if (command === 'route') {
-      printRoute(plan, Boolean(flags.json), stdout);
+      printRoute(plan, Boolean(flags.json), stdout, estimate);
       return 0;
     }
 
     requireVerificationOptIn(config, flags);
     const budgetCalls = validateRunBudget(plan, config, flags.budgetCalls);
     if (flags.dryRun) {
-      printRoute(plan, false, stdout);
+      printRoute(plan, false, stdout, estimate);
       return 0;
     }
 

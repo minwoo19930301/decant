@@ -182,7 +182,25 @@ decant route "add pagination to the users endpoint"
 decant run  "add pagination to the users endpoint" --dry-run
 ```
 
-`route` prints the plan: which stages, which model, which effort, and why.
+`route` prints the plan: which stages, which model, which effort, and why. It also
+estimates what the run will cost before you spend it:
+
+```console
+$ decant route "add pagination to the users endpoint"
+Assessment: balanced (score 7)
+…
+Agent invocations: 4..5 (deterministic readers)
+Estimated cost: ~5.0m of model time, 4..5 calls (5 of 6 stages calibrated from 1 local run(s))
+  excludes verification commands — your programs, not ours to guess
+  excludes tokens and currency — not observable from here; check your provider
+```
+
+The estimate is calibrated from **this workspace's own recorded runs** — every
+completed stage already stores its duration, so past runs are a free calibration
+set that improves with use. With no history it falls back to a seed table and says
+so. On the one run measured against it, the prediction was 301 s against an actual
+305 s. It reports no token figure, because nothing here can observe one.
+
 `--dry-run` validates the whole run and writes nothing.
 
 **…actually run it?**
