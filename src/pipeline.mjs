@@ -385,10 +385,27 @@ function canonicalPayload({ task, summary, evidence, verification, risks, nextSt
 }
 
 function statusFromGates({ truth, verification, readers, renderAudit }) {
-  if (!truth.passed || verification.status === 'fail' || !readers.passed || renderAudit?.passed === false) {
+  // Correctness signals decide pass/fail. Report clarity is a separate signal —
+  // that separation is the project's headline claim, and collapsing a clarity
+  // score into `fail` broke it in the one place that matters, the exit status.
+  //
+  // A live run made this concrete: five stages passed, the reviewer passed, the
+  // user's `npm test` went from 1 test to 5 and exited 0 — and the run was
+  // reported `fail` because the generated report scored 8 of 10 personas with
+  // zero critical issues. The code was fine; the write-up was slightly terse.
+  //
+  // Critical report issues are different. Those mean the artifact itself is
+  // broken or unsafe (no body, active external embeds, executable links), so
+  // they stay a failure.
+  const criticalReportIssues = (readers?.criticalCount ?? 0) > 0
+    || (renderAudit?.criticalCount ?? 0) > 0;
+  if (!truth.passed || verification.status === 'fail' || criticalReportIssues) {
     return 'fail';
   }
   if (verification.status === 'unverified') return 'warn';
+  // Below the clarity threshold, but nothing is broken: worth a look, not a
+  // verdict on the change.
+  if (readers?.passed === false || renderAudit?.passed === false) return 'warn';
   return 'pass';
 }
 
