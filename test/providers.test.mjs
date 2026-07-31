@@ -76,8 +76,25 @@ test('extractOutput takes the last block and survives quoted transcript lines', 
     `${OUTPUT_END}`,
     ' ▸ Credits: 0.02',
   ].join('\n');
-  assert.equal(extractOutput(transcript), 'real answer line one\nline two');
+  assert.equal(extractOutput(transcript).output, 'real answer line one\nline two');
+  assert.equal(extractOutput(transcript).fallback, false);
   assert.throws(() => extractOutput('no sentinels here'), /did not contain a Decant sentinel block/);
+});
+
+test('a missing sentinel falls back to the outermost JSON object, but only for JSON', () => {
+  // A live run lost an entire reviewer stage this way: the model answered well
+  // and simply did not emit the sentinels.
+  const transcript = ' > running a tool\nHere is the review:\n{"verdict":"pass","findings":[]}\nCredits: 0.4';
+  const recovered = extractOutput(transcript, { expect: 'json' });
+  assert.equal(recovered.fallback, true);
+  assert.deepEqual(JSON.parse(recovered.output), { verdict: 'pass', findings: [] });
+
+  // Prose has no self-delimiting shape, so keeping the transcript would corrupt
+  // the artifact instead of failing the stage.
+  assert.throws(
+    () => extractOutput('a long prose answer with tool logs and no sentinels', { expect: 'text' }),
+    /did not contain a Decant sentinel block/,
+  );
 });
 
 test('a provider without capability metadata still gets labelled roles, marked heuristic', () => {

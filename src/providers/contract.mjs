@@ -60,20 +60,39 @@ const SENTINEL_PATTERN = new RegExp(`${OUTPUT_BEGIN}([\\s\\S]*?)${OUTPUT_END}`, 
  * before answering. Strips the single-level quote prefix some CLIs put on
  * assistant lines.
  *
+ * A live run lost a whole reviewer stage because the model simply did not emit
+ * the sentinels on a long answer, so `expect` controls what happens then. With a
+ * JSON schema in play there is a safe fallback — find the outermost object in the
+ * transcript — because a JSON object is self-delimiting in a way prose is not.
+ * Without one, refuse: silently keeping a transcript full of tool logs as the
+ * "answer" would corrupt the stage artifact rather than fail it.
+ *
  * @param {string} transcript
- * @returns {string}
+ * @param {{expect?: 'json' | 'text'}} [options]
+ * @returns {{output: string, fallback: boolean}}
  */
-export function extractOutput(transcript) {
-  const matches = [...String(transcript).matchAll(SENTINEL_PATTERN)];
-  if (matches.length === 0) {
-    throw new Error(
-      'provider output did not contain a Decant sentinel block, so the stage answer '
-      + 'could not be separated from the transcript',
-    );
+export function extractOutput(transcript, options = {}) {
+  const text = String(transcript);
+  const matches = [...text.matchAll(SENTINEL_PATTERN)];
+  if (matches.length > 0) {
+    return { output: stripQuotePrefix(matches[matches.length - 1][1]), fallback: false };
   }
-  return matches[matches.length - 1][1]
-    .replace(/^[ \t]*>[ \t]?/gm, '')
-    .trim();
+  if (options.expect === 'json') {
+    const stripped = stripQuotePrefix(text);
+    const first = stripped.indexOf('{');
+    const last = stripped.lastIndexOf('}');
+    if (first >= 0 && last > first) {
+      return { output: stripped.slice(first, last + 1).trim(), fallback: true };
+    }
+  }
+  throw new Error(
+    'provider output did not contain a Decant sentinel block, so the stage answer '
+    + 'could not be separated from the transcript',
+  );
+}
+
+function stripQuotePrefix(value) {
+  return String(value).replace(/^[ \t]*>[ \t]?/gm, '').trim();
 }
 
 /**
