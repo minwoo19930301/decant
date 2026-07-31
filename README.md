@@ -129,6 +129,38 @@ old names so its recorded hashes still verify; `verify:launch`, `report:launch`,
 and `audit:launch` write to `outputs/` rather than overwriting it. Nothing has
 been published to npm under any name yet.
 
+## What a run leaves behind
+
+This is the part that matters, so here is the shape of it. A completed run is a
+directory of plain files — no database, no daemon, nothing to query:
+
+```text
+.decant/runs/20260731T044012123Z-8f3a91c2/
+├── run.json          # manifest: task, assessment, routing, which provider ran,
+│                     #   invocations used vs budget, sha256 of every file below
+├── events.jsonl      # one line per stage.started / stage.completed / decision
+├── scout.json        # cheap read-only pass: what it found, open questions
+├── architect.md      # the plan — only present if scout evidence justified it
+├── maker.md          # what the implementing stage says it changed
+├── verification.json # exit code and output of YOUR commands, run verbatim
+├── reviewer.json     # the reviewer model's verdict and cited evidence
+├── summary.md        # the explainer stage: a newcomer-facing summary of the run
+└── report.html       # all of the above rendered as one standalone page (Korean)
+```
+
+Three things to notice:
+
+- `verification.json`, `reviewer.json`, and the Reader-10 result in `run.json`
+  are **three separate records**. The report shows them side by side and never
+  collapses them into one pass/fail.
+- `run.json` stores a sha256 for each artifact. `decant replay <id> --frozen`
+  re-checks them, so you can tell whether anything changed since the run.
+- `decant report` re-renders the page from these files with **no model calls**,
+  and writes `report.regenerated.html` rather than touching `report.html`.
+
+If a stage fails, the run stops and the manifest records the failure. You get
+the files produced up to that point and nothing is rolled back.
+
 ## What it does
 
 - **Risk-aware routing:** five keyword-scored task dimensions select stage
@@ -211,11 +243,11 @@ large catalog. Skill ids were renamed from `relay10-*` to **`decant-*`** in
 | `decant-release` | prove package, artifact, hash, and support claims | requires explicit publication authority |
 | `decant-skill-lab` | tune triggers and compare against no-skill baseline | rejects skills without measured benefit |
 
-The Confirmed Task Contract is an optional output of the `decant-spec` Skill.
-`decant run` does not automatically ingest, cryptographically bind, or
-enforce that contract. The same boundary applies to other Skill guidance: a
-host agent follows it; the CLI does not claim to turn every instruction into a
-runtime invariant.
+A **Confirmed Task Contract** is the optional written output of the
+`decant-spec` Skill: the outcome, the non-goals, what evidence counts as
+acceptance, and how to roll back. `decant run` does not read, cryptographically
+bind, or enforce it. The same boundary applies to all Skill guidance: a host
+agent follows it; the CLI does not turn instructions into runtime invariants.
 
 The canonical pack lives under `plugins/decant/skills`. `.agents/skills` and
 `.claude/skills` are relative symlinks to that directory so a cloned repository
@@ -236,9 +268,9 @@ Installed Claude Code plugin skills appear namespaced as `decant:<skill-name>`;
 a session opened inside a clone of this repository loads the same skills through
 `.claude/skills` or `.agents/skills` without installing anything. Grok Build
 discovers the pack via `.agents/skills` (and optional Claude-compat skill
-paths). Skills guide the host agent on Claude Code, Grok Build, or Codex.
-Optional `decant run` model stages still use Codex CLI in
-0.2.
+paths). Skills guide the host agent on Claude Code, Grok Build, or Codex. The
+`decant run` pipeline is a separate surface and uses whichever provider your
+config selects.
 The pack follows progressive disclosure and contains original clean-room text.
 The Skill-ecosystem
 source subset and license cautions are recorded in
@@ -350,7 +382,11 @@ slugs:
 }
 ```
 
-## Version 0.2 preview limits
+## Detailed scope boundaries
+
+The short list of deal-breakers is [above](#what-it-will-not-do--read-this-before-installing).
+This is the long-form version: the specific things people ask for that `0.2`
+does not do.
 
 - Two stage backends ship: `codex` and `kiro`. They are not equivalent — see the
   capability row in `doctor` and the `provider` block in the run manifest. Direct
@@ -414,6 +450,6 @@ gates, architect/editor separation, stateless transcripts, provider/worker
 ports, and independent review. It excludes swarms, nested completion loops,
 always-on daemons, databases, vector memory, schedulers, native TUI/GUI stacks,
 global injection, and telemetry from the core. Decant's
-risk/verifiability/reversibility router and Effort Governor, separation of
+risk/verifiability/reversibility router, separation of
 correctness from clarity, hash-bound frozen replay, and Reader-10 gate are its
 own additions.
