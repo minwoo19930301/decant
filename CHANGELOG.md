@@ -31,9 +31,12 @@
   `report:launch`, and `audit:launch` used to overwrite the released artifacts
   in place, which silently replaced them with a fresh — and, without Codex on
   `PATH`, failing — log. All three now write to the gitignored `outputs/`
-  directory through `scripts/frozen-evidence.mjs`. Overwriting the archive
-  requires both `--freeze` and `REIN_ALLOW_FROZEN_OVERWRITE=1`, is refused
-  before any work starts, and is covered by tests.
+  directory through `scripts/frozen-evidence.mjs`. That guard checks the opened
+  file descriptor's inode against the four released artifacts, not just the
+  pathname, so a symlink, a hardlink, or a path component swapped mid-write
+  cannot redirect the bytes onto the archive. Overwriting an artifact requires
+  `--freeze`, `REIN_ALLOW_FROZEN_OVERWRITE=1`, and naming that artifact
+  directly; it is refused before any work starts and is covered by tests.
 
 - Gate the frontier architect after scout evidence for economy-tier work while
   preserving always/never controls and the existing artifact contract.
