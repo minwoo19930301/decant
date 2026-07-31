@@ -4,6 +4,7 @@ import {
   mkdir,
   mkdtemp,
   symlink,
+  writeFile,
 } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -21,6 +22,7 @@ import {
   resolveRunDir,
   validateRunBudget,
 } from '../src/cli.mjs';
+import { DEFAULT_CONFIG } from '../src/config.mjs';
 import {
   exists,
   readText,
@@ -474,5 +476,45 @@ test('warn and fail statuses use the non-success exit code', () => {
   assert.notEqual(exitCodeForStatus('warn'), exitCodeForStatus('fail'));
   for (const status of ['warn', 'fail', 'error']) {
     assert.notEqual(exitCodeForStatus(status), 0);
+  }
+});
+
+test('review runs one read-only stage and maps the verdict to an exit code', async () => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'decant-review-'));
+  const calls = [];
+  const stage = (verdict, findings = []) => async (options) => {
+    calls.push(options);
+    await writeFile(options.outputFile, JSON.stringify({
+      verdict,
+      summary: 'a summary',
+      findings,
+      acceptance_checks: [{ criterion: 'c', passed: verdict === 'pass', evidence: 'e' }],
+    }), 'utf8');
+    return { code: 0 };
+  };
+  const context = (verdict, findings) => ({
+    cwd,
+    stdout: captureOutput().stream,
+    configAndCatalogImpl: async () => ({
+      config: DEFAULT_CONFIG,
+      catalog: { roles: { frontier: { model: 'm', effort: 'high' } } },
+      provider: { id: 'fake', runStage: stage(verdict, findings) },
+    }),
+  });
+
+  assert.equal(await main(['review', 'do the thing'], context('pass')), 0);
+  assert.equal(await main(['review', 'do the thing'], context('uncertain')), 3);
+  assert.equal(
+    await main(['review', 'do the thing'], context('fail', [
+      { severity: 'critical', message: 'broken', evidence: 'index.html:1' },
+    ])),
+    2,
+  );
+
+  // The reviewer must never be given write access, and must be told the task.
+  for (const options of calls) {
+    assert.equal(options.sandbox, 'read-only');
+    assert.match(options.prompt, /do the thing/);
+    assert.ok(options.outputSchema, 'the reviewer answer must be schema-constrained');
   }
 });

@@ -22,6 +22,8 @@ import { DEFAULT_PROVIDER, PROVIDER_IDS, resolveProvider } from './providers/ind
 import { CONFIG_FILENAME, DEFAULT_CONFIG, loadConfig } from './config.mjs';
 import { spawnCapture } from './executor.mjs';
 import { routeTask } from './router.mjs';
+import { assessReviewer, REVIEWER_SCHEMA } from './pipeline.mjs';
+import { standaloneReviewerPrompt } from './prompts.mjs';
 import {
   ensureDir,
   exists,
@@ -39,6 +41,7 @@ Usage:
   decant doctor [--json]
   decant route <task> [--json]
   decant run <task> [--dry-run] [--live-readers] [--budget-calls N] [--allow-verification-commands]
+  decant review <task> [--json] [--output file]
   decant inspect [run-id] [--json]
   decant report [run-id] [--output file]
   decant replay [run-id] --frozen [--output file]
@@ -95,6 +98,14 @@ const COMMAND_SPECS = Object.freeze({
       'live-readers': { key: 'liveReaders', type: BOOLEAN },
       'budget-calls': { key: 'budgetCalls', type: VALUE },
       'allow-verification-commands': { key: 'allowVerificationCommands', type: BOOLEAN },
+    },
+  },
+  review: {
+    minPositionals: 1,
+    maxPositionals: Number.POSITIVE_INFINITY,
+    flags: {
+      json: { key: 'json', type: BOOLEAN },
+      output: { key: 'output', type: VALUE },
     },
   },
   inspect: {
@@ -522,6 +533,66 @@ export async function main(argv = process.argv.slice(2), context = {}) {
     }
     stdout.write(`Report: ${path.join(result.runDir, 'report.html')}\n`);
     return exitCodeForStatus(result.manifest.status);
+  }
+
+  if (command === 'review') {
+    // The reviewer, on its own, pointed at a workspace Decant did not produce.
+    //
+    // On the one A/B measured so far, the reviewer was the only stage that added
+    // something the unharnessed run did not have: it caught a defect against the
+    // task's first requirement that both versions shipped. Running the other four
+    // stages cost 227 extra seconds and produced a tie. So this exposes the part
+    // that earned its place, at one model call, and makes its value measurable
+    // across many tasks instead of arguable across one.
+    const task = positionals.join(' ');
+    const loadForReview = context.configAndCatalogImpl ?? configAndCatalog;
+    const { config, catalog, provider } = await loadForReview(cwd);
+    const reviewer = catalog.roles[config.effort?.reviewerRole ?? 'frontier'];
+    const outputFile = path.resolve(cwd, flags.output ?? 'decant-review.json');
+    if (aliasesProtectedFile(cwd, outputFile)) {
+      throw new Error(`Review output would overwrite a protected file: ${outputFile}`);
+    }
+    stdout.write(
+      `Reviewing ${cwd}\n`
+      + `Provider: ${provider.id} · model ${reviewer.model}/${config.effort?.reviewer ?? reviewer.effort}\n`,
+    );
+    await provider.runStage({
+      prompt: standaloneReviewerPrompt(task, cwd, outputFile),
+      cwd,
+      model: reviewer.model,
+      effort: config.effort?.reviewer ?? reviewer.effort,
+      sandbox: 'read-only',
+      outputFile,
+      outputSchema: REVIEWER_SCHEMA,
+      timeoutMs: config.limits.stageTimeoutMs,
+    });
+    const result = await readJson(outputFile);
+    const assessed = assessReviewer(result);
+    if (flags.json) {
+      stdout.write(`${JSON.stringify({ ...result, assessment: assessed }, null, 2)}\n`);
+    } else {
+      stdout.write(`Verdict: ${result.verdict}\n${result.summary}\n`);
+      for (const finding of result.findings ?? []) {
+        stdout.write(`  [${finding.severity}] ${finding.message}\n`);
+        if (finding.evidence) stdout.write(`      evidence: ${finding.evidence}\n`);
+      }
+      for (const problem of assessed.problems ?? []) {
+        stdout.write(`  malformed: ${problem}\n`);
+      }
+      stdout.write(`Saved: ${outputFile}\n`);
+    }
+    // A review is a reading, not a proof. The exit code carries the verdict:
+    //   0  pass        the reviewer found nothing that fails the task
+    //   2  fail         the reviewer rejected the work, or its answer was malformed
+    //   3  uncertain    the reviewer could not gather enough evidence to say
+    //
+    // `uncertain` is deliberately separated from `fail`: a reviewer that could
+    // not run the tests has told you something different from a reviewer that
+    // read the code and rejected it. A malformed answer is a failure of this
+    // command, not a verdict, so it takes 2 as well.
+    const malformed = (assessed.problems ?? []).length > 0;
+    if (malformed || result.verdict === 'fail') return 2;
+    return result.verdict === 'uncertain' ? 3 : 0;
   }
 
   if (command === 'inspect') {
