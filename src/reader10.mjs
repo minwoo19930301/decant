@@ -130,7 +130,7 @@ function withoutQuotedMarkup(source) {
 
 function inspectImages(source) {
   const markup = withoutQuotedMarkup(source);
-  const images = [...markup.matchAll(/<img\b([^>]*)>/gi)];
+  const images = [...markup.matchAll(/<img\b([^><\n]*)>/gi)];
   return {
     count: images.length,
     missingAlt: images.filter((match) => !/\balt\s*=\s*(['"])[\s\S]*?\1/i.test(match[1])).length,
@@ -139,7 +139,7 @@ function inspectImages(source) {
 
 function inspectTables(source) {
   const markup = withoutQuotedMarkup(source);
-  const tables = [...markup.matchAll(/<table\b[^>]*>([\s\S]*?)<\/table>/gi)];
+  const tables = [...markup.matchAll(/<table\b[^><\n]*>([\s\S]*?)<\/table>/gi)];
   return {
     count: tables.length,
     withoutHeaders: tables.filter((match) => !/<th\b/i.test(match[1])).length,
