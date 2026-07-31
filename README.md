@@ -2,6 +2,19 @@
 
 > Pour off what coding-agent harnesses do well. Leave the sediment.
 
+`0.2.0` preview · MIT · Node 20+ · no third-party runtime dependencies · last
+tagged release `v0.1.1` (under the project's original name, Relay10) · not on npm
+
+## Five words you will meet below
+
+| Term | What it means here |
+|---|---|
+| **stage** | one launch of the agent with a fixed job: `scout`, `architect`, `maker`, `reviewer`, `explainer` |
+| **scout** | the cheap read-only stage that looks before anything is built |
+| **maker** | the only stage allowed to change your files |
+| **frontier / balanced / economy** | labels for which of your models a stage should use. They come from provider metadata, your overrides, or a guess from the model's family name — **not** from prices or benchmarks |
+| **Reader-10** | a check on whether the *run report* is readable. Ten named personas share one rule engine. It says nothing about whether the code is correct |
+
 ## What this is, in plain terms
 
 When you hand a real task to a coding agent, you usually get one long answer and
@@ -72,7 +85,8 @@ decant run "add pagination to the users endpoint" --dry-run   # plan only, nothi
 ```
 
 `doctor` tells you which provider is selected and, importantly, what that
-provider can and cannot enforce:
+provider can and cannot enforce. Real output from a machine running Node 26
+(anything from 20 up is fine):
 
 ```text
 PASS Node v26.5.0
@@ -293,12 +307,16 @@ These are role defaults, not a claim that one role always receives the
 objectively best or cheapest model. The available catalog metadata and local
 overrides determine the concrete model and supported effort.
 
-The default `conditional` policy skips the architect call only when the initial
-task is economy-tier and `scout.json` contains no open questions. The run still
-keeps `architect.md` as a deterministic skip record, so the six-stage artifact
-contract remains stable. Balanced/frontier work keeps the advisor, and an
-economy run with unresolved questions stops before mutation if its invocation
-budget has no advisor headroom.
+The default `conditional` policy calls the expensive architect stage only when
+it looks necessary. It is skipped when both are true: the task scored as
+`economy`, and the scout came back with no open questions. Even when skipped,
+`architect.md` is still written — recording *that it was skipped and why* — so
+every run has the same six files whether or not the architect ran.
+
+For `balanced` or `frontier` work the architect always runs. An `economy` run
+whose scout did raise questions will call the architect, and if there is no
+invocation budget left for that call the run stops **before** anything is
+modified rather than proceeding without a plan.
 
 ## Commands
 
