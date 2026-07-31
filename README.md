@@ -97,6 +97,12 @@ a task this size; `--budget-calls` is what stops it being more.
 No token or currency figure, because Decant cannot see either. Your provider's
 dashboard can.
 
+And does the harness actually beat not using it? On one measured task — build a
+small flamingo game — **it tied on every stated requirement, took 3.9x longer,
+and used 5x the model calls.** The one thing it added was a reviewer finding that
+caught a real defect both versions shipped. Full numbers, including the parts
+that do not flatter it: [docs/ab-flamingo.md](docs/ab-flamingo.md).
+
 ---
 
 ## What we took, and from where
@@ -326,6 +332,7 @@ In Claude Code:
 
 ## More detail
 
+- [A/B: with and without the harness](docs/ab-flamingo.md) — measured, including where it lost
 - [Limits](docs/limits.md) — every claim this tool does not make
 - [Architecture](docs/architecture.md) — stage contracts, the provider
   interface, and what is deliberately missing
