@@ -18,9 +18,39 @@ adds four things your agent does not give you on its own:
   a run can't quietly become thirty
 
 **The name.** To decant is to pour wine into another vessel so the clear part
-comes over and the sediment stays behind. Two ideas in one word: keep only the
-practices worth keeping from the harnesses that already exist, and carry them
-into whatever model you happen to run underneath.
+comes over and the sediment stays behind. Keep only the practices worth keeping
+from the harnesses that already exist; carry them into whatever model you run.
+
+## See it decide
+
+Real output, same machine, two tasks. Nothing ran — this is `route`, the preview:
+
+```console
+$ decant route "fix a typo in the README"
+Assessment: economy (score 4)
+Dimensions: complexity=0, risk=1, blast=0, verifiability=2, reversibility=3
+- scout      run         economy/low     -> claude-haiku-4.5
+- architect  conditional frontier/max    -> claude-opus-5
+- maker      run         balanced/medium -> claude-sonnet-5
+- reviewer   run         frontier/high   -> claude-opus-5
+Agent invocations: 4..5
+
+$ decant route "delete the users table and migrate production data to the new schema"
+Assessment: frontier (score 24)
+Dimensions: complexity=2, risk=3, blast=2, verifiability=2, reversibility=0
+- scout      run         economy/low     -> claude-haiku-4.5
+- architect  run         frontier/max    -> claude-opus-5
+- maker      run         balanced/medium -> claude-sonnet-5
+- reviewer   run         frontier/high   -> claude-opus-5
+Agent invocations: 5..5
+```
+
+The typo gets `architect: conditional` — the expensive model is **skipped** if
+the cheap scout comes back with no open questions. The production migration gets
+`architect: run`, because `reversibility=0` and `risk=3` mean you do not want to
+find out mid-edit. That decision is the product.
+
+When you run it for real, you get a folder of files and a `report.html`.
 
 ---
 
@@ -42,10 +72,9 @@ short list of other people's good ideas, implemented small.
 | Keep the transcript out of the loop; pass files | mini-swe-agent's statelessness | Stages hand off through files, not a growing conversation |
 | Completion needs evidence you can check | verification-before-completion practice | Command results, artifact hashes, and a frozen replay check — recorded separately from any model's opinion |
 
-And what we deliberately left in the bottle: agent swarms, background daemons,
-retry-until-done loops, vector memory, a scheduler, a database, a TUI, telemetry.
-
-Full lineage with links and licence notes: [docs/prior-art.md](docs/prior-art.md).
+Left in the bottle: swarms, daemons, retry-until-done, vector memory,
+schedulers, a TUI. Full lineage with links and licence notes:
+[docs/prior-art.md](docs/prior-art.md).
 
 ---
 
@@ -147,9 +176,8 @@ the command line:
 decant run "fix the failing pagination test" --allow-verification-commands
 ```
 
-Two safeguards: there is no shell, so `&&` and `$(…)` are not interpreted; and
-if commands are configured but you forget the flag, the run stops instead of
-silently skipping verification.
+There is no shell, so `&&` and `$(…)` are not interpreted. And if you configure
+commands but forget the flag, the run stops rather than quietly skipping them.
 
 **…stop it from getting expensive?**
 
@@ -179,61 +207,46 @@ cope with a CLI that has no structured-output flag.
 
 ## What a run leaves behind
 
+A folder of plain files. `report.html` is the one to open; the rest is there when
+you want to check the report against what actually happened.
+
 ```text
 .decant/runs/20260731T044012123Z-8f3a91c2/
-├── run.json          # manifest: task, plan, which backend ran, budget used,
-│                     #   and a sha256 for every file below
-├── events.jsonl      # one line per stage start / finish / decision
-├── scout.json        # the cheap look: what it found, what it's unsure about
-├── architect.md      # the plan — or a record of why it was skipped
-├── maker.md          # what the implementing stage says it changed
-├── verification.json # exit code and output of YOUR commands
-├── reviewer.json     # the reviewer model's verdict, with cited evidence
-├── summary.md        # a plain summary for someone who wasn't watching
-└── report.html       # all of it as one standalone page
+├── report.html        ← open this
+├── run.json           the plan, the backend used, budget spent, a sha256 per file
+├── events.jsonl       one line per stage start, finish, decision
+├── scout.json         the cheap look, including what it was unsure about
+├── architect.md       the plan — or why it was skipped
+├── maker.md           what the implementing stage says it changed
+├── verification.json  exit code and output of your commands
+├── reviewer.json       the reviewer model's verdict, with cited evidence
+└── summary.md         a plain summary for someone who wasn't watching
 ```
 
-`verification.json`, `reviewer.json`, and the readability result are three
-separate records. The report shows them side by side and never collapses them
-into a single pass/fail, because "the tests passed" and "a model thinks it looks
-right" are not the same claim.
+Your tests, the reviewer model, and the readability check stay three separate
+records. "The tests passed" and "a model thinks it looks right" are different
+claims, so the report never merges them into one verdict.
 
-If a stage fails the run stops. You keep the files produced so far, and nothing
-is rolled back.
+If a stage fails, the run stops there. You keep what was produced and nothing is
+rolled back.
 
 ---
 
 ## What it will not do
 
-Read this before installing. Being straight about it is the point.
+Three that will actually change your mind:
 
-- **Routing is a guess, not a measurement.** Five task dimensions are scored
-  with hand-written keyword patterns and hand-picked weights. Nothing here
-  calibrates those numbers, and there is no published comparison against simply
-  prompting your model directly.
-- **`--budget-calls` counts launches, not money.** Not tokens, not
-  provider-internal turns, not currency.
-- **The readability check is a linter, not a jury.** "Reader-10" is ten named
-  personas sharing one rule engine, checking the *report* — structure, headings,
-  jargon, alt text. Live mode makes ten model calls that may all be the same
-  model. Neither tells you the code is correct.
-- **Hash-frozen replay detects drift, it does not notarise.** It tells you a
-  local file changed. It is not an external notary or a tamper-proof ledger.
-- **`frontier` / `balanced` / `economy` are labels.** From provider metadata,
-  your overrides, or — for a backend that publishes no metadata — a guess from
-  the model's family name. Not prices, not benchmarks.
-- **No retry, no resume, no rollback.** A failed stage ends the run.
-- **The report renders Korean labels.** The clarity gate itself is
-  language-neutral as of `0.2`, but the template strings have not been extracted
-  yet, so output text is still Korean.
-- **The two backends are not equivalent.** Codex enforces a JSON schema and a
-  kernel sandbox. The Kiro adapter asks for the schema in the prompt and grants a
-  tool allowlist, which is weaker. `doctor` and `run.json` both say which you
-  got.
+- **The routing is a guess.** Keyword patterns and hand-picked weights, with no
+  calibration and no published comparison against just prompting your model.
+- **`--budget-calls` counts launches, not money.** Not tokens, not turns, not
+  currency.
+- **Nothing here proves your code is correct.** The readability check is a
+  linter. The hash check spots a changed file. A failed stage ends the run with
+  no rollback.
 
-Last tagged release is `v0.1.1`, made under the project's first name **Relay10**.
-Nothing has been published to npm. The `v0.1.1` evidence under `docs/launch-*`
-keeps the old names on purpose so its recorded hashes still verify.
+The other dozen — what the labels mean, why the two backends differ, what replay
+does and doesn't guarantee, why the report is still Korean — are in
+[docs/limits.md](docs/limits.md), one page, written for the same reason.
 
 <a id="decant-skill-pack"></a>
 
@@ -268,6 +281,7 @@ In Claude Code:
 
 ## More detail
 
+- [Limits](docs/limits.md) — every claim this tool does not make
 - [Architecture](docs/architecture.md) — stage contracts, the provider
   interface, and what is deliberately missing
 - [Prior art](docs/prior-art.md) — full lineage, sources, licence notes

@@ -250,7 +250,7 @@ function printRoute(plan, asJson, stdout) {
     stdout.write(`- ${stage.id.padEnd(10)} ${state.padEnd(11)} ${capability}/${stage.effort} -> ${stage.model}\n`);
   }
   const readerMode = plan.callEstimate.readerMode ?? (plan.liveReaders ? 'live' : 'deterministic');
-  stdout.write(`Codex invocations: ${plan.callEstimate.minimum}..${plan.callEstimate.maximum} (${readerMode} readers)\n`);
+  stdout.write(`Agent invocations: ${plan.callEstimate.minimum}..${plan.callEstimate.maximum} (${readerMode} readers)\n`);
 }
 
 function pathIsWithin(parent, candidate) {
@@ -504,7 +504,7 @@ export async function main(argv = process.argv.slice(2), context = {}) {
     if (flags.json) stdout.write(`${JSON.stringify(manifest, null, 2)}\n`);
     else {
       stdout.write(`Run: ${manifest.runId ?? manifest.id ?? path.basename(runDir)}\nStatus: ${manifest.status}\nTask: ${manifest.task}\n`);
-      stdout.write(`Codex invocations: ${manifest.invocations?.used ?? manifest.calls?.used ?? 0}/${manifest.invocations?.budget ?? manifest.calls?.budget ?? '-'}\n`);
+      stdout.write(`Agent invocations: ${manifest.invocations?.used ?? manifest.calls?.used ?? 0}/${manifest.invocations?.budget ?? manifest.calls?.budget ?? '-'}\n`);
       stdout.write(`Assessment: ${manifest.assessment?.role ?? '-'} (${manifest.assessment?.score ?? '-'})\n`);
       stdout.write(`Report: ${path.join(runDir, 'report.html')}\n`);
     }
