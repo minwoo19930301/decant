@@ -10,8 +10,30 @@ export function makerPrompt(task, runDir) {
   return `You are the maker.\n\nTask: ${task}\nPlan or advisor decision: ${runDir}/architect.md\nEvidence: ${runDir}/scout.json\n\nImplement the requested in-scope change in the workspace. If architect.md starts with "고급 조언 생략", use the task and scout evidence to make the smallest direct plan instead of inventing missing requirements. Keep the solution small. Run relevant deterministic checks, do not publish or deploy, and report changed files plus verification. Your final response becomes ${runDir}/maker.md.`;
 }
 
-export function reviewerPrompt(task, runDir) {
-  return `You are the correctness reviewer.\n\nTask: ${task}\nPlan: ${runDir}/architect.md\nMaker log: ${runDir}/maker.md\nVerification log: ${runDir}/verification.json\n\nReview current workspace changes against the task and plan. Focus on correctness, security, regressions, missing tests, and unsupported claims. Do not edit files. Return JSON matching the required schema. Every acceptance check and finding must cite a concrete file, command output, or artifact; use verdict uncertain when evidence is insufficient. This is factual review, not writing-style review. Your final response becomes ${runDir}/reviewer.json.`;
+/**
+ * Review a workspace that Decant did not produce.
+ *
+ * The pipeline reviewer cites the plan, the maker log, and the verification log.
+ * None of those exist when you point the reviewer at whatever another agent just
+ * built, so this variant names only the workspace and the task, and is explicit
+ * that absent evidence means `uncertain` rather than an assumed pass.
+ */
+export function standaloneReviewerPrompt(task, cwd, outputFile) {
+  return `You are the correctness reviewer. You did not write this code and there is no plan or maker log to consult.
+
+Task the code was supposed to accomplish: ${task}
+Workspace: ${cwd}
+
+Read the workspace and judge whether it accomplishes that task. Do not edit anything.
+
+Focus on correctness, security, regressions, missing tests, and claims the code cannot support. Check the task's stated requirements one by one. A requirement can be satisfied on paper and still fail in practice, so judge each one against how the code will actually be used, not against whether the code appears to mention it.
+
+Return JSON matching the required schema. Every finding and every acceptance check must cite a concrete file, line, or command output. Use verdict "uncertain" when the evidence in front of you is insufficient; do not infer that something passed because you cannot see it fail. This is factual review, not writing-style review.
+
+Your final response becomes ${outputFile}.`;
+}
+
+export function reviewerPrompt(task, runDir) {  return `You are the correctness reviewer.\n\nTask: ${task}\nPlan: ${runDir}/architect.md\nMaker log: ${runDir}/maker.md\nVerification log: ${runDir}/verification.json\n\nReview current workspace changes against the task and plan. Focus on correctness, security, regressions, missing tests, and unsupported claims. Do not edit files. Return JSON matching the required schema. Every acceptance check and finding must cite a concrete file, command output, or artifact; use verdict uncertain when evidence is insufficient. This is factual review, not writing-style review. Your final response becomes ${runDir}/reviewer.json.`;
 }
 
 export function explainerPrompt(task, runDir, feedbackFile = '') {

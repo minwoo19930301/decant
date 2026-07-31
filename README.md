@@ -239,6 +239,22 @@ decant run "small typo fix" --budget-calls 3
 That caps **agent launches**. It does not cap tokens or money — see the limits
 below.
 
+**…just review what another agent already wrote?**
+
+The cheapest useful thing here. One model call, read-only, no pipeline, no run
+directory — point it at any workspace:
+
+```bash
+decant review "the task the code was supposed to accomplish"
+```
+
+Exit code carries the verdict: `0` pass, `2` the reviewer rejected it, `3` it
+could not gather enough evidence to say. Findings cite file and line.
+
+In the measured A/B below, this alone caught — unprompted, as `critical` — the
+defect that broke the task's first requirement and that the unharnessed run
+shipped silently. The full six-stage pipeline rated the same defect `low`.
+
 **…look at an old run?**
 
 ```bash

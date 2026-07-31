@@ -33,7 +33,7 @@ import { validateConfig } from './config.mjs';
 import { readJson, readText, runId, sha256, writeJson, writeText } from './utils.mjs';
 
 const SCOUT_SCHEMA = fileURLToPath(new URL('../schema/scout-result.schema.json', import.meta.url));
-const REVIEWER_SCHEMA = fileURLToPath(new URL('../schema/reviewer-result.schema.json', import.meta.url));
+export const REVIEWER_SCHEMA = fileURLToPath(new URL('../schema/reviewer-result.schema.json', import.meta.url));
 const READER_SCHEMA = fileURLToPath(new URL('../schema/reader-result.schema.json', import.meta.url));
 const RUN_ID_PATTERN = /^\d{8}T\d{9}Z-[A-Za-z0-9]{8}$/;
 
@@ -280,7 +280,7 @@ function assertScout(value) {
   return value;
 }
 
-function assessReviewer(value) {
+export function assessReviewer(value) {
   const problems = [];
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return { passed: false, status: 'fail', problems: ['reviewer result is not an object'] };
