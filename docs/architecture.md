@@ -1,19 +1,19 @@
-# DisciplinedRun architecture
+# Rein architecture
 
-DisciplinedRun is a thin subprocess harness around the installed Codex CLI, built with
+Rein is a thin subprocess harness around the installed Codex CLI, built with
 zero third-party npm runtime dependencies. It does not replace the agent
 runtime, provide a second terminal interface, or maintain a hidden memory
-database. A run writes inspectable artifacts beneath `.relay10/runs/<id>/`.
+database. A run writes inspectable artifacts beneath `.rein/runs/<id>/`.
 
 ## Current Codex runtime coupling
 
 Version 0.1.1 is intentionally, and concretely, Codex-runtime-only. The 0.2
-preview uses `disciplinedrun` as the primary command while keeping the v0.1
-`r10` name as a legacy alias:
+preview uses `rein` as the primary command while keeping the v0.1
+`rein` name as a legacy alias:
 
 - `src/executor.mjs` starts `codex exec` for every model stage;
 - `src/catalog.mjs` discovers models with `codex debug models`;
-- `disciplinedrun doctor` checks `codex --version`;
+- `rein doctor` checks `codex --version`;
 - stage arguments use Codex sandbox, search, output-schema, ephemeral, and
   reasoning-effort flags;
 - configuration has model overrides, but no `providerId`, base URL, API key,
@@ -21,7 +21,7 @@ preview uses `disciplinedrun` as the primary command while keeping the v0.1
 
 This means the verified release path is Codex CLI with the local OpenAI model
 catalog. An xAI/Grok Responses endpoint may be reachable experimentally through
-a user-level Codex custom provider, but DisciplinedRun does not configure or validate
+a user-level Codex custom provider, but Rein does not configure or validate
 that path and cannot mix providers by stage. Direct OpenAI API, Anthropic,
 Gemini, and xAI executors are not implemented.
 
@@ -46,7 +46,7 @@ request
 
 ## Initial routing with one evidence checkpoint
 
-Task difficulty alone is a poor proxy for a suitable role. DisciplinedRun records five
+Task difficulty alone is a poor proxy for a suitable role. Rein records five
 scores from 0 to 3:
 
 - `complexity`: expected synthesis or decomposition;
@@ -69,9 +69,9 @@ transcript-aware retry and mid-execution advice remain future work.
 
 ## Model labels come from metadata
 
-DisciplinedRun reads `codex debug models` and maps visible entries to `frontier`,
+Rein reads `codex debug models` and maps visible entries to `frontier`,
 `balanced`, and `economy` using catalog descriptions, priority, supported
-efforts, and user overrides. These labels are routing hints. DisciplinedRun does not
+efforts, and user overrides. These labels are routing hints. Rein does not
 measure current token price, latency, benchmark performance, or relative
 intelligence, so `economy` does not mean provably cheapest or weakest and
 `frontier` does not mean provably best for every task.
@@ -93,7 +93,7 @@ headings, length, terminology, links, action cues, and HTML accessibility. It
 does not semantically understand the report. Live Reader-10 schedules ten
 separate reader-model invocations per round. Those invocations may reuse one
 model or related models, so their errors are not guaranteed to be independent.
-The configured invocation limit counts DisciplinedRun subprocess launches, not hidden
+The configured invocation limit counts Rein subprocess launches, not hidden
 provider turns, tokens, or monetary cost.
 
 ## Artifact contract
@@ -112,8 +112,8 @@ A completed run contains an artifact hash map in `run.json` and can contain:
 The list is an execution-artifact contract, not a complete audit ledger. A
 completed run hashes its files so `replay --frozen` can reject missing or
 changed artifacts and copy the already-saved report without model calls.
-`disciplinedrun report` is the separate model-free re-render path and never
-overwrites the frozen report. The legacy `r10 report` alias has the same
+`rein report` is the separate model-free re-render path and never
+overwrites the frozen report. The legacy `rein report` alias has the same
 behavior. Neither command resumes a run or recreates its original machine,
 toolchain, hooks, credentials, or remote model service.
 
@@ -125,10 +125,10 @@ without a shell, captures bounded output, and terminates the spawned process
 group on POSIX timeout. Users must still choose verification executables they
 trust.
 
-DisciplinedRun prompts do not authorize Git push, deployment, merge, purchase, or
+Rein prompts do not authorize Git push, deployment, merge, purchase, or
 other external publication. The effective boundary also depends on the local
 Codex installation, configuration, hooks, MCP servers, credentials, and
-operating system; DisciplinedRun cannot independently constrain capabilities supplied
+operating system; Rein cannot independently constrain capabilities supplied
 outside its subprocess arguments.
 
 ## Target portability boundary
@@ -152,8 +152,8 @@ not merely after a text response succeeds.
 
 For app surfaces:
 
-- a Skill can document and call `disciplinedrun route/run/inspect` (or the
-  legacy `r10` alias), but cannot by itself
+- a Skill can document and call `rein route/run/inspect` (or the
+  legacy `rein` alias), but cannot by itself
   force the current Codex desktop task to switch models per stage;
 - a Codex Plugin with a local stdio MCP server can expose `route`, `run`,
   `status`, `inspect`, and `report` as app tools while reusing the CLI engine;
@@ -183,6 +183,6 @@ support matrix and official references.
 - Deterministic Reader-10 is structural rather than semantic.
 - Live Reader-10 costs ten model invocations per round and does not guarantee
   model diversity.
-- Verification is explicit opt-in; DisciplinedRun does not infer safe project commands.
+- Verification is explicit opt-in; Rein does not infer safe project commands.
 - Run artifacts do not snapshot the entire machine, toolchain, or remote model
   service.

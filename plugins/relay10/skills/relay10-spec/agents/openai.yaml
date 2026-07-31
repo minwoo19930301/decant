@@ -1,4 +1,0 @@
-interface:
-  display_name: "DisciplinedRun Spec"
-  short_description: "Clarify blocking decisions and confirm a task contract"
-  default_prompt: "Use $relay10-spec to inspect repo facts, ask only blocking decisions, and confirm the smallest verifiable task contract."

@@ -1,17 +1,17 @@
 # Prior art, provenance, and clean-room record
 
-This file records what DisciplinedRun's authors inspected, what abstract ideas were
+This file records what Rein's authors inspected, what abstract ideas were
 retained, and what was not copied. It is an engineering provenance note, not a
 legal opinion or a claim that the underlying workflow ideas are novel.
 
 ## Clean-room boundary
 
-DisciplinedRun is an independently implemented MIT-licensed wrapper. The repository
+Rein is an independently implemented MIT-licensed wrapper. The repository
 does **not** vendor source code, prompt text, skill instructions, scripts,
 templates, assets, model weights, or datasets from the compared projects.
 Public repository metadata, READMEs, documentation, and behavior descriptions
 were used to identify patterns and trade-offs. Those patterns were rewritten
-as DisciplinedRun requirements and implemented against DisciplinedRun's own architecture.
+as Rein requirements and implemented against Rein's own architecture.
 
 The boundary is especially strict for repositories or paths whose GitHub API
 license is `NOASSERTION`, whose license is component-specific, or whose content
@@ -79,23 +79,23 @@ The entries below identify conceptual lineage. “Retained” means the project
 implemented its own narrow version; it does not mean the upstream project was
 the first or only source of the idea.
 
-| Abstract pattern observed in the ecosystem | DisciplinedRun's independent expression | Excluded upstream shape |
+| Abstract pattern observed in the ecosystem | Rein's independent expression | Excluded upstream shape |
 |---|---|---|
 | Use different roles or models for planning and editing. | `scout`, `architect`, `maker`, `reviewer`, and `explainer` have explicit roles; model labels are mapped from local Codex catalog metadata with user overrides. | Provider/runtime internals, universal quality rankings, and claims that a label is objectively cheapest or smartest. |
 | Separate planning from consequential execution. | Read-only planning stages and a workspace-write maker; skill instructions preserve diagnosis/plan-only boundaries. | Full plan-mode runtimes, hidden permission escalation, or automatic publication. |
-| Specifications should preserve intent through implementation. | `relay10-spec` records outcome, non-goals, constraints, acceptance checks, risk, and rollback without requiring a large artifact hierarchy. | Mandatory constitutions, PRDs, stories, or personas for every task. |
-| Small slices and tests reduce implementation risk. | `relay10-build` favors bounded vertical slices and appropriate tests; verification commands are explicit literal argv entries. | Universal TDD mandates, inferred shell commands, automatic commits, and autonomous retry loops. |
-| Debugging should reproduce and localize before changing code. | `relay10-debug` separates diagnosis from fix authority and requires reassessment after repeated failed attempts. | Repeated speculative edits and endless self-healing loops. |
-| Spec compliance and code quality are different review questions. | `relay10-review` uses a fixed baseline, evidence, severity, and distinct correctness/risk/test concerns; the runtime reviewer remains separate from command results. | Reviewer councils, fabricated consensus, and model judgment presented as proof. |
+| Specifications should preserve intent through implementation. | `rein-spec` records outcome, non-goals, constraints, acceptance checks, risk, and rollback without requiring a large artifact hierarchy. | Mandatory constitutions, PRDs, stories, or personas for every task. |
+| Small slices and tests reduce implementation risk. | `rein-build` favors bounded vertical slices and appropriate tests; verification commands are explicit literal argv entries. | Universal TDD mandates, inferred shell commands, automatic commits, and autonomous retry loops. |
+| Debugging should reproduce and localize before changing code. | `rein-debug` separates diagnosis from fix authority and requires reassessment after repeated failed attempts. | Repeated speculative edits and endless self-healing loops. |
+| Spec compliance and code quality are different review questions. | `rein-review` uses a fixed baseline, evidence, severity, and distinct correctness/risk/test concerns; the runtime reviewer remains separate from command results. | Reviewer councils, fabricated consensus, and model judgment presented as proof. |
 | Completion requires observable evidence. | Explicit verification results, artifact hashes, frozen replay checks, release proof, and Reader-10 presentation results are recorded separately. | Benchmark inheritance, hidden CI claims, and clarity scores presented as factual correctness. |
-| Skill systems benefit from focused triggers and progressive disclosure. | Eight one-job `relay10-*` skill folders plus a current Codex plugin manifest; only relevant instructions should load. | Hundreds of default skills, copied vendor rules, unknown hooks, telemetry, and context-heavy global injection. |
+| Skill systems benefit from focused triggers and progressive disclosure. | Eight one-job `rein-*` skill folders plus a current Codex plugin manifest; only relevant instructions should load. | Hundreds of default skills, copied vendor rules, unknown hooks, telemetry, and context-heavy global injection. |
 | Portability needs an adapter contract rather than an endpoint claim. | The documented target separates workflow, catalog/provider, workspace executor, result/artifact, and UI surfaces. | Claiming Grok, Claude, Gemini, or app-native support before end-to-end tool and schema tests. |
 | Durable handoffs help inspection and replay. | Per-run files, events, hashes, model-free report regeneration, and a hash-checked frozen report copy. | A hidden memory database, full machine snapshot claims, or an unimplemented resume scheduler. |
 | Premium judgment can be wasteful before simple work and useful after evidence exposes a direction choice. | The default architect is an evidence-gated advisor: economy/no-question runs record a skip, while non-economy or unresolved-question runs invoke it and record the budget. | Hard-coded provider pairings, universal percentage-savings claims, automatic fan-out, and an unimplemented mid-maker resume loop. |
 
 ## Locally authored implementation evidence
 
-The following files are the primary DisciplinedRun implementation surfaces and are
+The following files are the primary Rein implementation surfaces and are
 not derived copies of any compared repository:
 
 - `src/router.mjs`: five-dimensional initial routing using complexity, risk,
@@ -103,16 +103,16 @@ not derived copies of any compared repository:
 - `src/catalog.mjs`: local Codex catalog discovery and candid capability labels;
 - `src/executor.mjs` and `src/pipeline.mjs`: subprocess and stage contracts;
 - `src/reader10.mjs` and `src/report.mjs`: clarity checks and standalone report;
-- `test/*.test.mjs`: behavior and regression tests written for DisciplinedRun;
-- `plugins/relay10/skills/relay10-*/SKILL.md`: locally written, focused skill
+- `test/*.test.mjs`: behavior and regression tests written for Rein;
+- `plugins/rein/skills/rein-*/SKILL.md`: locally written, focused skill
   procedures;
-- `plugins/relay10/.codex-plugin/plugin.json`: DisciplinedRun's own plugin metadata;
-- `plugins/relay10/.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`:
-  DisciplinedRun's own Claude Code plugin and marketplace metadata.
+- `plugins/rein/.codex-plugin/plugin.json`: Rein's own plugin metadata;
+- `plugins/rein/.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`:
+  Rein's own Claude Code plugin and marketplace metadata.
 - `docs/host-surface-verification.md`: dated evidence for Claude Code and Grok
   Build skill-host loading; not stage-executor proof.
 
-DisciplinedRun-specific combinations include the risk/verifiability/reversibility
+Rein-specific combinations include the risk/verifiability/reversibility
 router, correctness-versus-clarity separation, literal-argv verification,
 hash-bound frozen replay, and the bounded Reader-10 report gate. Similar
 individual ideas may exist elsewhere; the claim is independent implementation,
@@ -120,7 +120,7 @@ not invention of every component concept.
 
 ## License handling decisions
 
-- No third-party repository license is used as a dependency of DisciplinedRun's
+- No third-party repository license is used as a dependency of Rein's
   implementation because no third-party code or skill content is vendored.
 - GitHub API `NOASSERTION` is treated as unresolved, not permissive.
 - The Anthropic `docx`, `pdf`, `pptx`, and `xlsx` skill directories are treated

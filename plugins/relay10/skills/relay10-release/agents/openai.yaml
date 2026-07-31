@@ -1,4 +1,0 @@
-interface:
-  display_name: "DisciplinedRun Release"
-  short_description: "Prove a release or handoff before publishing"
-  default_prompt: "Use $relay10-release to prepare verifiable release evidence without publishing yet."

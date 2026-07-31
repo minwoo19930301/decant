@@ -1,10 +1,10 @@
 name: Reproducible bug
-description: Report a DisciplinedRun failure with enough evidence to reproduce it.
+description: Report a Rein failure with enough evidence to reproduce it.
 title: "bug: "
 body:
   - type: markdown
     attributes:
-      value: Thanks for helping make DisciplinedRun more reliable. Remove credentials and private data from every artifact.
+      value: Thanks for helping make Rein more reliable. Remove credentials and private data from every artifact.
   - type: textarea
     id: outcome
     attributes:
@@ -18,14 +18,14 @@ body:
       label: Minimal reproduction
       description: Include exact commands, a small fixture or public repository, and the first failing step.
       placeholder: |
-        disciplinedrun doctor
-        disciplinedrun route "..." --json
+        rein doctor
+        rein route "..." --json
     validations:
       required: true
   - type: input
     id: version
     attributes:
-      label: DisciplinedRun commit or version
+      label: Rein commit or version
       placeholder: v0.1.1 or a commit SHA
     validations:
       required: true

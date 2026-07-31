@@ -7,7 +7,7 @@ import path from 'node:path';
 import { spawnCapture } from '../src/executor.mjs';
 
 const root = path.resolve(new URL('..', import.meta.url).pathname);
-const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), 'relay10-package-'));
+const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), 'rein-package-'));
 
 function assertSucceeded(label, result) {
   if (result.code === 0 && result.timedOut !== true) return;
@@ -44,7 +44,7 @@ try {
   );
   assertSucceeded('fresh package install', install);
 
-  const packageRoot = path.join(installRoot, 'node_modules', 'disciplinedrun');
+  const packageRoot = path.join(installRoot, 'node_modules', 'rein-cli');
   const check = await spawnCapture('npm', ['run', 'check'], {
     cwd: packageRoot,
     timeoutMs: 120_000,
@@ -52,7 +52,7 @@ try {
   assertSucceeded('installed package check', check);
 
   const binSuffix = process.platform === 'win32' ? '.cmd' : '';
-  for (const command of ['disciplinedrun', 'dpr', 'r10', 'relay10']) {
+  for (const command of ['rein']) {
     const executable = path.join(
       installRoot,
       'node_modules',
@@ -64,8 +64,8 @@ try {
       timeoutMs: 30_000,
     });
     assertSucceeded(`${command} installed CLI help`, help);
-    if (!help.stdout.includes('DisciplinedRun')) {
-      throw new Error(`${command} installed CLI help did not show DisciplinedRun`);
+    if (!help.stdout.includes('Rein')) {
+      throw new Error(`${command} installed CLI help did not show Rein`);
     }
   }
 

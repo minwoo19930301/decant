@@ -1,13 +1,10 @@
 {
-  "name": "disciplinedrun",
+  "name": "rein-cli",
   "version": "0.2.0",
-  "description": "DisciplinedRun — a lightweight coding-agent harness with risk-aware effort, inspectable evidence, and separate verdicts. (formerly Relay10)",
+  "description": "Rein — keep a coding-agent run on a short rein: risk-aware routing, an invocation ceiling, inspectable file evidence, and hash-frozen replay. Codex CLI only. (formerly Relay10 / DisciplinedRun)",
   "type": "module",
   "bin": {
-    "disciplinedrun": "./src/cli.mjs",
-    "dpr": "./src/cli.mjs",
-    "relay10": "./src/cli.mjs",
-    "r10": "./src/cli.mjs"
+    "rein": "./src/cli.mjs"
   },
   "scripts": {
     "check": "npm run test && npm run lint && npm run validate:skills",
@@ -24,7 +21,7 @@
     "node": ">=20"
   },
   "keywords": [
-    "disciplinedrun",
+    "rein",
     "relay10",
     "codex",
     "claude-code",
@@ -32,20 +29,20 @@
     "agent-skills",
     "agent-harness",
     "model-routing",
-    "effort-governor",
+    "invocation-ceiling",
     "evidence-led",
-    "multi-agent",
+    "frozen-replay",
     "clarity-eval"
   ],
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/minwoo19930301/relay10.git"
+    "url": "git+https://github.com/minwoo19930301/rein.git"
   },
   "bugs": {
-    "url": "https://github.com/minwoo19930301/relay10/issues"
+    "url": "https://github.com/minwoo19930301/rein/issues"
   },
-  "homepage": "https://github.com/minwoo19930301/relay10#readme",
+  "homepage": "https://github.com/minwoo19930301/rein#readme",
   "files": [
     "src",
     "schema",
@@ -53,7 +50,7 @@
     "test",
     "scripts",
     "docs",
-    "plugins/relay10",
+    "plugins/rein",
     ".claude-plugin",
     "README.md",
     "LICENSE",

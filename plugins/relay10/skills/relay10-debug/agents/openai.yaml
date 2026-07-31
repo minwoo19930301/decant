@@ -1,4 +1,0 @@
-interface:
-  display_name: "DisciplinedRun Debug"
-  short_description: "Find a root cause before proposing a repair"
-  default_prompt: "Use $relay10-debug to reproduce and isolate this failure before editing anything."

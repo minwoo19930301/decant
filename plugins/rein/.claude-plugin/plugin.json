@@ -1,0 +1,14 @@
+{
+  "name": "rein",
+  "displayName": "Rein",
+  "version": "0.2.0",
+  "description": "Eight small, on-demand Rein skills for evidence-led repository work.",
+  "author": {
+    "name": "minwoo19930301",
+    "url": "https://github.com/minwoo19930301"
+  },
+  "homepage": "https://github.com/minwoo19930301/rein#rein-skill-pack",
+  "repository": "https://github.com/minwoo19930301/rein",
+  "license": "MIT",
+  "keywords": ["claude-code", "agent-skills", "model-routing", "release-evidence"]
+}

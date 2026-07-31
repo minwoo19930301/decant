@@ -55,7 +55,7 @@ test('formatCliError turns missing executables into actionable PATH guidance', (
 test('doctor reports a structured FAIL when Codex is missing instead of crashing', async () => {
   const output = captureOutput();
   const context = {
-    cwd: await mkdtemp(path.join(os.tmpdir(), 'relay10-doctor-missing-')),
+    cwd: await mkdtemp(path.join(os.tmpdir(), 'rein-doctor-missing-')),
     stdout: output.stream,
     spawnCaptureImpl: async () => {
       const error = Object.assign(new Error('spawn codex ENOENT'), {
@@ -84,7 +84,7 @@ test('doctor reports a structured FAIL when Codex is missing instead of crashing
 test('doctor --json stays parseable when Codex spawn fails', async () => {
   const output = captureOutput();
   const context = {
-    cwd: await mkdtemp(path.join(os.tmpdir(), 'relay10-doctor-json-')),
+    cwd: await mkdtemp(path.join(os.tmpdir(), 'rein-doctor-json-')),
     stdout: output.stream,
     spawnCaptureImpl: async () => {
       throw Object.assign(new Error('spawn codex ENOENT'), { code: 'ENOENT', path: 'codex' });
@@ -188,9 +188,9 @@ test('verification commands require an explicit run opt-in', () => {
 });
 
 test('run ids are strict and resolve only beneath the runs directory', async () => {
-  const cwd = await mkdtemp(path.join(os.tmpdir(), 'relay10-cli-'));
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'rein-cli-'));
   const id = '20260713T000000123Z-1234abcd';
-  const runDir = path.join(cwd, '.relay10', 'runs', id);
+  const runDir = path.join(cwd, '.rein', 'runs', id);
   await mkdir(runDir, { recursive: true });
   await writeJson(path.join(runDir, 'run.json'), { id, status: 'pass' });
 
@@ -204,14 +204,14 @@ test('run ids are strict and resolve only beneath the runs directory', async () 
   );
 
   const escapedId = '20260713T000000124Z-bbbbbbbb';
-  const outside = await mkdtemp(path.join(os.tmpdir(), 'relay10-cli-outside-'));
-  await symlink(outside, path.join(cwd, '.relay10', 'runs', escapedId), 'dir');
-  await assert.rejects(resolveRunDir(cwd, escapedId), /escapes the DisciplinedRun runs directory/);
+  const outside = await mkdtemp(path.join(os.tmpdir(), 'rein-cli-outside-'));
+  await symlink(outside, path.join(cwd, '.rein', 'runs', escapedId), 'dir');
+  await assert.rejects(resolveRunDir(cwd, escapedId), /escapes the Rein runs directory/);
 });
 
 test('report and replay output contracts preserve the frozen run', () => {
   const cwd = '/workspace';
-  const runDir = '/workspace/.relay10/runs/20260713T000000123Z-1234abcd';
+  const runDir = '/workspace/.rein/runs/20260713T000000123Z-1234abcd';
   assert.equal(
     resolveReportOutput(cwd, runDir),
     path.join(runDir, 'report.regenerated.html'),
@@ -229,8 +229,8 @@ test('report and replay output contracts preserve the frozen run', () => {
 });
 
 test('report output cannot alias the immutable report or manifest', async () => {
-  const cwd = await mkdtemp(path.join(os.tmpdir(), 'relay10-report-output-'));
-  const runDir = path.join(cwd, '.relay10', 'runs', '20260713T000000123Z-1234abcd');
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'rein-report-output-'));
+  const runDir = path.join(cwd, '.rein', 'runs', '20260713T000000123Z-1234abcd');
   await mkdir(runDir, { recursive: true });
   const reportFile = path.join(runDir, 'report.html');
   const manifestFile = path.join(runDir, 'run.json');
@@ -247,8 +247,8 @@ test('report output cannot alias the immutable report or manifest', async () => 
 });
 
 test('replay output rejects a physical path that enters the frozen run through a symlink', async () => {
-  const cwd = await mkdtemp(path.join(os.tmpdir(), 'relay10-replay-output-'));
-  const runDir = path.join(cwd, '.relay10', 'runs', '20260713T000000123Z-1234abcd');
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'rein-replay-output-'));
+  const runDir = path.join(cwd, '.rein', 'runs', '20260713T000000123Z-1234abcd');
   await mkdir(runDir, { recursive: true });
   const alias = path.join(cwd, 'run-alias');
   await symlink(runDir, alias, 'dir');
@@ -284,7 +284,7 @@ test('dry-run validates verification opt-in and the planned call budget without 
   };
   let executions = 0;
   const context = {
-    cwd: await mkdtemp(path.join(os.tmpdir(), 'relay10-dry-run-')),
+    cwd: await mkdtemp(path.join(os.tmpdir(), 'rein-dry-run-')),
     stdout: output.stream,
     configAndCatalogImpl: async () => ({ config, catalog: { roles: {} } }),
     pipeline: {
@@ -327,7 +327,7 @@ test('dry-run validates verification opt-in and the planned call budget without 
 });
 
 test('an authorized run passes verification consent and the validated budget to the pipeline', async () => {
-  const cwd = await mkdtemp(path.join(os.tmpdir(), 'relay10-authorized-run-'));
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'rein-authorized-run-'));
   const config = {
     routing: {},
     readerGate: { mode: 'deterministic', minPass: 9, maxRounds: 2 },
@@ -368,9 +368,9 @@ test('an authorized run passes verification consent and the validated budget to 
 });
 
 test('report defaults to a regenerated file and leaves the original immutable', async () => {
-  const cwd = await mkdtemp(path.join(os.tmpdir(), 'relay10-report-command-'));
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'rein-report-command-'));
   const id = '20260713T000000123Z-1234abcd';
-  const runDir = path.join(cwd, '.relay10', 'runs', id);
+  const runDir = path.join(cwd, '.rein', 'runs', id);
   const original = path.join(runDir, 'report.html');
   await mkdir(runDir, { recursive: true });
   await writeJson(path.join(runDir, 'run.json'), { id, status: 'warn' });
@@ -398,9 +398,9 @@ test('report defaults to a regenerated file and leaves the original immutable', 
 });
 
 test('inspect prints the restored pipeline manifest runId and preserves warn exit status', async () => {
-  const cwd = await mkdtemp(path.join(os.tmpdir(), 'relay10-inspect-command-'));
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'rein-inspect-command-'));
   const id = '20260713T000000123Z-1234abcd';
-  const runDir = path.join(cwd, '.relay10', 'runs', id);
+  const runDir = path.join(cwd, '.rein', 'runs', id);
   await mkdir(runDir, { recursive: true });
   await writeJson(path.join(runDir, 'run.json'), {
     runId: id,
@@ -417,9 +417,9 @@ test('inspect prints the restored pipeline manifest runId and preserves warn exi
 });
 
 test('frozen replay verifies before atomically copying and never mutates run artifacts', async () => {
-  const cwd = await mkdtemp(path.join(os.tmpdir(), 'relay10-replay-command-'));
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'rein-replay-command-'));
   const id = '20260713T000000123Z-1234abcd';
-  const runDir = path.join(cwd, '.relay10', 'runs', id);
+  const runDir = path.join(cwd, '.rein', 'runs', id);
   const reportFile = path.join(runDir, 'report.html');
   const manifestFile = path.join(runDir, 'run.json');
   const outputFile = path.join(cwd, 'exports', 'replayed.html');

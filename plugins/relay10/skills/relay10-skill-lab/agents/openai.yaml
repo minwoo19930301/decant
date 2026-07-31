@@ -1,4 +1,0 @@
-interface:
-  display_name: "DisciplinedRun Skill Lab"
-  short_description: "Test and tune a focused skill pack"
-  default_prompt: "Use $relay10-skill-lab to validate this skill against triggers and a no-skill baseline."

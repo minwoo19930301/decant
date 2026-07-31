@@ -21,7 +21,7 @@ test('parseCli separates positional arguments and flags', () => {
 });
 
 test('writeJson creates parent directories', async () => {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'relay10-'));
+  const root = await mkdtemp(path.join(os.tmpdir(), 'rein-'));
   const target = path.join(root, 'nested', 'value.json');
   await writeJson(target, { ok: true });
   assert.deepEqual(await readJson(target), { ok: true });
@@ -29,7 +29,7 @@ test('writeJson creates parent directories', async () => {
 });
 
 test('concurrent writeJson calls leave one complete document and no temporary files', async () => {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'relay10-'));
+  const root = await mkdtemp(path.join(os.tmpdir(), 'rein-'));
   const target = path.join(root, 'run.json');
   await Promise.all([
     writeJson(target, { writer: 'alpha', values: Array.from({ length: 100 }, (_, index) => index) }),
@@ -43,7 +43,7 @@ test('concurrent writeJson calls leave one complete document and no temporary fi
 });
 
 test('writeJson removes its temporary file when rename fails', async () => {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'relay10-'));
+  const root = await mkdtemp(path.join(os.tmpdir(), 'rein-'));
   const target = path.join(root, 'existing-directory');
   await mkdir(target);
 
@@ -52,7 +52,7 @@ test('writeJson removes its temporary file when rename fails', async () => {
 });
 
 test('readText propagates errors unless a missing-file fallback is explicit', async () => {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'relay10-'));
+  const root = await mkdtemp(path.join(os.tmpdir(), 'rein-'));
   const missing = path.join(root, 'missing.txt');
 
   await assert.rejects(readText(missing), { code: 'ENOENT' });
@@ -71,7 +71,7 @@ test('readText propagates errors unless a missing-file fallback is explicit', as
 });
 
 test('latestRun skips missing and malformed manifests', async () => {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'relay10-'));
+  const root = await mkdtemp(path.join(os.tmpdir(), 'rein-'));
   assert.equal(await latestRun(path.join(root, 'missing')), null);
 
   const runs = path.join(root, 'runs');
@@ -98,7 +98,7 @@ test('latestRun skips missing and malformed manifests', async () => {
 });
 
 test('hash is deterministic and run ids include milliseconds plus an injected UUID suffix', () => {
-  assert.equal(sha256('relay10'), sha256('relay10'));
+  assert.equal(sha256('rein'), sha256('rein'));
   assert.equal(
     runId(
       new Date('2026-07-13T00:00:00.123Z'),
