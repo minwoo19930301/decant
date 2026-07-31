@@ -238,13 +238,18 @@ budget has no advisor headroom.
 rein init [--force]
 rein doctor
 rein route <task> [--json]
-rein run <task> [--dry-run] [--live-readers] [--budget-calls N]
+rein run <task> [--dry-run] [--live-readers] [--budget-calls N] [--allow-verification-commands]
 rein inspect [run-id] [--json]
 rein report [run-id] [--output file]
 rein replay [run-id] --frozen [--output file]
 ```
 
 Single binary: `rein`. There are no aliases.
+
+Configured verification commands are **skipped unless you pass
+`--allow-verification-commands`**. Without it a run that has commands configured
+stops and tells you to rerun with the flag, so verification is never executed by
+surprise — but it also means a run can finish `warn` with nothing verified.
 
 The inherited v0.1 `replay --frozen` contract verifies the recorded hashes and
 either reports the saved `report.html` path or copies that exact file outside

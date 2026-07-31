@@ -3,7 +3,12 @@ import path from 'node:path';
 
 import { evaluateReader10, evaluateReader10Payload } from '../src/reader10.mjs';
 import { generateReport } from '../src/report.mjs';
-import { describeTarget, evidenceTarget, writeEvidence } from './frozen-evidence.mjs';
+import {
+  describeTarget,
+  evidenceTarget,
+  writeEvidence,
+  writeOutputsSidecar,
+} from './frozen-evidence.mjs';
 
 const root = path.resolve(new URL('..', import.meta.url).pathname);
 const outputs = path.join(root, 'outputs');
@@ -396,6 +401,8 @@ const deterministicAudit = {
 // Compare the two files by content, not by hash.
 await writeEvidence(root, reportDestination, final);
 await writeEvidence(root, deterministicDestination, `${JSON.stringify(deterministicAudit, null, 2)}\n`);
-await writeFile(path.join(outputs, 'relay10-launch-report.html'), final, 'utf8');
+// Guarded like every other write: a link planted at this legacy sidecar name
+// used to reach docs/launch-report.html.
+await writeOutputsSidecar(root, 'relay10-launch-report.html', final);
 process.stdout.write(`launch report: payload ${payloadGate.passedPersonas}/10, render ${renderAudit.passedPersonas}/10, ${renderAudit.criticalCount} critical\n`);
 process.stdout.write(`report: ${describeTarget(root, reportDestination)}\nreader log: ${describeTarget(root, deterministicDestination)}\n`);

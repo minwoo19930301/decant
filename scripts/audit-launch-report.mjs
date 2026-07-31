@@ -7,7 +7,12 @@ import { mapPool, runCodex } from '../src/executor.mjs';
 import { liveReaderPrompt } from '../src/prompts.mjs';
 import { aggregateReader10, READER10_PERSONAS } from '../src/reader10.mjs';
 import { readJson, writeJson } from '../src/utils.mjs';
-import { describeTarget, evidenceTarget, writeEvidence } from './frozen-evidence.mjs';
+import {
+  describeTarget,
+  evidenceTarget,
+  writeEvidence,
+  writeOutputsSidecar,
+} from './frozen-evidence.mjs';
 
 const root = path.resolve(new URL('..', import.meta.url).pathname);
 const reportFile = path.join(root, 'docs', 'launch-report.html');
@@ -64,7 +69,7 @@ const audit = {
   personas,
 };
 await writeEvidence(root, liveDestination, `${JSON.stringify(audit, null, 2)}\n`);
-await writeJson(path.join(root, 'outputs', 'relay10-launch-reader-live.json'), audit);
+await writeOutputsSidecar(root, 'relay10-launch-reader-live.json', `${JSON.stringify(audit, null, 2)}\n`);
 process.stdout.write(`live audit: ${audit.passedPersonas}/10 readers, ${audit.criticalCount} critical, ${model}/low\n`);
 process.stdout.write(`reader log: ${describeTarget(root, liveDestination)}\n`);
 if (!audit.passed) process.exitCode = 2;

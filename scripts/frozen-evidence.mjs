@@ -88,19 +88,28 @@ async function protectedIdentities(root) {
 }
 
 /**
- * Write one evidence artifact without letting a symlink, a hardlink, or a
- * mid-write path swap redirect the bytes onto the released archive.
+ * Write a file, refusing to let a symlink, a hardlink, or a path component
+ * swapped mid-write redirect the bytes onto one of the released artifacts.
+ *
+ * Path validation alone cannot do this. `O_NOFOLLOW` constrains only the final
+ * component, so an intermediate component can be flipped into a symlink after
+ * the directory check (an auditor won that race in 30 s), and a hardlink is an
+ * ordinary file that passes every symlink test while sharing the archive's
+ * inode. So the opened descriptor is interrogated instead: whatever the kernel
+ * actually resolved must not be a released artifact.
  *
  * @param {string} root repository root
- * @param {{target: string, frozen: boolean, relative: string}} destination from evidenceTarget
+ * @param {string} target absolute path to write
  * @param {string | Uint8Array} data
+ * @param {{boundary?: string, allow?: string}} [options]
+ *   boundary — directory the write must stay inside (defaults to `outputs/`).
+ *   allow — the one FROZEN_EVIDENCE path this write is permitted to be.
  */
-export async function writeEvidence(root, destination, data) {
-  const { target, frozen, relative } = destination;
+export async function writeGuarded(root, target, data, options = {}) {
+  const boundary = options.boundary ?? path.join(root, 'outputs');
   const directory = path.dirname(target);
   await mkdir(directory, { recursive: true });
 
-  const boundary = frozen ? root : path.join(root, 'outputs');
   const resolvedRoot = await realpath(root);
   const resolvedDirectory = await realpath(directory);
 
@@ -141,8 +150,8 @@ export async function writeEvidence(root, destination, data) {
   }
 
   const identities = await protectedIdentities(root);
-  const allowed = frozen
-    ? identities.find((identity) => identity.relativePath === relative)
+  const allowed = options.allow
+    ? identities.find((identity) => identity.relativePath === options.allow)
     : undefined;
 
   // Open without O_TRUNC so nothing is destroyed before the descriptor itself
@@ -175,4 +184,37 @@ export async function writeEvidence(root, destination, data) {
   } finally {
     await handle.close();
   }
+}
+
+/**
+ * Write one declared evidence artifact to the destination chosen by
+ * `evidenceTarget`.
+ *
+ * @param {string} root repository root
+ * @param {{target: string, frozen: boolean, relative: string}} destination from evidenceTarget
+ * @param {string | Uint8Array} data
+ */
+export async function writeEvidence(root, destination, data) {
+  const { target, frozen, relative } = destination;
+  await writeGuarded(root, target, data, {
+    boundary: frozen ? root : path.join(root, 'outputs'),
+    allow: frozen ? relative : undefined,
+  });
+}
+
+/**
+ * Write a sidecar file into `outputs/`. The frozen v0.1.1 report instructs
+ * readers to look for `outputs/relay10-launch-*`, so those filenames are kept —
+ * but the writes must be guarded like any other, or a link planted at one of
+ * them reaches the archive.
+ *
+ * @param {string} root repository root
+ * @param {string} filename basename inside outputs/
+ * @param {string | Uint8Array} data
+ */
+export async function writeOutputsSidecar(root, filename, data) {
+  if (filename !== path.basename(filename)) {
+    throw new Error(`sidecar name must be a bare filename, received ${filename}`);
+  }
+  await writeGuarded(root, path.join(root, 'outputs', filename), data);
 }

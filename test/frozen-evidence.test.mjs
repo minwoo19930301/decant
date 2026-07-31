@@ -12,6 +12,7 @@ import {
   evidenceTarget,
   FROZEN_EVIDENCE,
   writeEvidence,
+  writeOutputsSidecar,
 } from '../scripts/frozen-evidence.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -200,8 +201,52 @@ test('flipping outputs into a symlink mid-write never reaches the archive', asyn
   assert.equal(await readFile(archive, 'utf8'), 'RELEASED');
 });
 
-test('--freeze with the override may still write its own artifact', async (t) => {
+test('legacy outputs sidecars are guarded too', async (t) => {
   const sandbox = await mkdtemp(path.join(tmpdir(), 'rein-evidence-'));
+  t.after(() => rm(sandbox, { recursive: true, force: true }));
+  const archive = path.join(sandbox, 'docs', 'launch-report.html');
+  await mkdir(path.join(sandbox, 'docs'), { recursive: true });
+  await mkdir(path.join(sandbox, 'outputs'), { recursive: true });
+  await writeFile(archive, 'RELEASED', 'utf8');
+
+  // The frozen v0.1.1 report tells readers to look for these filenames, so they
+  // are still produced — but they used to be written with a bare writeFile,
+  // which a link planted here turned into a path to the archive.
+  const sidecar = path.join(sandbox, 'outputs', 'relay10-launch-report.html');
+  await symlink(path.join('..', 'docs', 'launch-report.html'), sidecar);
+  await assert.rejects(
+    () => writeOutputsSidecar(sandbox, 'relay10-launch-report.html', 'OVERWRITTEN'),
+    /refusing to write evidence through the symlink/,
+  );
+  assert.equal(await readFile(archive, 'utf8'), 'RELEASED');
+
+  await rm(sidecar);
+  await link(archive, sidecar);
+  await assert.rejects(
+    () => writeOutputsSidecar(sandbox, 'relay10-launch-report.html', 'OVERWRITTEN'),
+    /hard links/,
+  );
+  assert.equal(await readFile(archive, 'utf8'), 'RELEASED');
+
+  await rm(sidecar);
+  await writeOutputsSidecar(sandbox, 'relay10-launch-report.html', 'SIDECAR');
+  assert.equal(await readFile(sidecar, 'utf8'), 'SIDECAR');
+  assert.equal(await readFile(archive, 'utf8'), 'RELEASED');
+});
+
+test('a sidecar name cannot escape outputs/', async (t) => {
+  const sandbox = await mkdtemp(path.join(tmpdir(), 'rein-evidence-'));
+  t.after(() => rm(sandbox, { recursive: true, force: true }));
+  await mkdir(path.join(sandbox, 'docs'), { recursive: true });
+  await writeFile(path.join(sandbox, 'docs', 'launch-report.html'), 'RELEASED', 'utf8');
+  await assert.rejects(
+    () => writeOutputsSidecar(sandbox, '../docs/launch-report.html', 'OVERWRITTEN'),
+    /must be a bare filename/,
+  );
+  assert.equal(await readFile(path.join(sandbox, 'docs', 'launch-report.html'), 'utf8'), 'RELEASED');
+});
+
+test('--freeze with the override may still write its own artifact', async (t) => {  const sandbox = await mkdtemp(path.join(tmpdir(), 'rein-evidence-'));
   t.after(() => rm(sandbox, { recursive: true, force: true }));
   const archive = path.join(sandbox, 'docs', 'launch-report.html');
   await mkdir(path.join(sandbox, 'docs'), { recursive: true });
