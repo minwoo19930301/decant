@@ -18,6 +18,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { discoverCatalog } from './catalog.mjs';
+import { DEFAULT_PROVIDER, PROVIDER_IDS, resolveProvider } from './providers/index.mjs';
 import { CONFIG_FILENAME, DEFAULT_CONFIG, loadConfig } from './config.mjs';
 import { spawnCapture } from './executor.mjs';
 import { routeTask } from './router.mjs';
@@ -200,13 +201,17 @@ function routeOptions(config) {
 
 export async function configAndCatalog(cwd, {
   loadConfigImpl = loadConfig,
-  discoverCatalogImpl = discoverCatalog,
+  discoverCatalogImpl,
 } = {}) {
   const config = await loadConfigImpl({ cwd });
-  const catalog = await discoverCatalogImpl({
+  // Discovery belongs to the provider: `codex debug models` is one
+  // implementation of "what models can you run", not the definition of it.
+  const provider = resolveProvider(config.provider ?? DEFAULT_PROVIDER);
+  const discover = discoverCatalogImpl ?? ((options) => provider.discoverCatalog(options));
+  const catalog = await discover({
     overrides: config.catalog?.overrides ?? {},
   });
-  return { config, catalog };
+  return { config, catalog, provider };
 }
 
 export function validateRunBudget(plan, config, requested) {
@@ -393,13 +398,23 @@ export async function main(argv = process.argv.slice(2), context = {}) {
   if (command === 'doctor') {
     const spawnCaptureImpl = context.spawnCaptureImpl ?? spawnCapture;
     const configAndCatalogImpl = context.configAndCatalogImpl ?? configAndCatalog;
-    let codex;
-    let codexSpawnError;
+    // Which executable to look for is the provider's business, not doctor's.
+    let selected;
+    let selectedError;
     try {
-      codex = await spawnCaptureImpl('codex', ['--version'], { cwd, timeoutMs: 10_000 });
+      const config = await loadConfig({ cwd });
+      selected = resolveProvider(config.provider ?? DEFAULT_PROVIDER);
     } catch (error) {
-      codexSpawnError = error;
-      codex = {
+      selectedError = formatCliError(error);
+      selected = resolveProvider(DEFAULT_PROVIDER);
+    }
+    let backend;
+    let backendSpawnError;
+    try {
+      backend = await spawnCaptureImpl(selected.executable, ['--version'], { cwd, timeoutMs: 10_000 });
+    } catch (error) {
+      backendSpawnError = error;
+      backend = {
         code: 1,
         stdout: '',
         stderr: formatCliError(error),
@@ -412,21 +427,34 @@ export async function main(argv = process.argv.slice(2), context = {}) {
     } catch (error) {
       catalogError = formatCliError(error);
     }
-    const codexDetail = codex.stdout.trim() || codex.stderr.trim() || (codexSpawnError ? formatCliError(codexSpawnError) : 'unknown Codex failure');
+    const backendDetail = backend.stdout.trim()
+      || backend.stderr.trim()
+      || (backendSpawnError ? formatCliError(backendSpawnError) : `unknown ${selected.displayName} failure`);
     const result = {
-      ok: Number(process.versions.node.split('.')[0]) >= 20 && codex.code === 0 && !catalogError,
+      ok: Number(process.versions.node.split('.')[0]) >= 20
+        && backend.code === 0
+        && !catalogError
+        && !selectedError,
       node: process.version,
-      codex: codexDetail,
+      provider: {
+        id: selected.id,
+        displayName: selected.displayName,
+        executable: selected.executable,
+        capabilities: { ...selected.capabilities },
+      },
+      backend: backendDetail,
       config: (await exists(path.join(cwd, CONFIG_FILENAME))) ? CONFIG_FILENAME : 'defaults',
       roles: catalog?.roles,
-      error: catalogError,
+      error: catalogError ?? selectedError,
     };
     if (flags.json) stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     else {
       stdout.write(`${result.ok ? 'PASS' : 'FAIL'} Node ${result.node}\n`);
-      stdout.write(`${codex.code === 0 ? 'PASS' : 'FAIL'} Codex ${result.codex}\n`);
-      for (const [role, selected] of Object.entries(result.roles ?? {})) {
-        stdout.write(`PASS ${role}: ${selected.model}/${selected.effort}\n`);
+      stdout.write(`INFO provider ${result.provider.id} (${result.provider.displayName}); available: ${PROVIDER_IDS.join(', ')}\n`);
+      stdout.write(`INFO sandbox=${result.provider.capabilities.sandbox} outputSchema=${result.provider.capabilities.outputSchema}\n`);
+      stdout.write(`${backend.code === 0 ? 'PASS' : 'FAIL'} ${result.provider.executable} ${result.backend}\n`);
+      for (const [role, selectedRole] of Object.entries(result.roles ?? {})) {
+        stdout.write(`PASS ${role}: ${selectedRole.model}/${selectedRole.effort}\n`);
       }
       if (result.error) stdout.write(`FAIL ${result.error}\n`);
     }

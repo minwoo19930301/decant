@@ -9,7 +9,7 @@
   "scripts": {
     "check": "npm run test && npm run lint && npm run validate:skills",
     "test": "node --test test/*.test.mjs",
-    "lint": "node --check src/*.mjs && node --check test/*.mjs && node --check scripts/*.mjs",
+    "lint": "node --check src/*.mjs && node --check src/providers/*.mjs && node --check test/*.mjs && node --check scripts/*.mjs",
     "smoke": "node src/cli.mjs doctor && node src/cli.mjs route \"research and build a small CLI\" --json",
     "validate:skills": "node scripts/validate-skill-pack.mjs",
     "verify:package": "node scripts/verify-packed-package.mjs",

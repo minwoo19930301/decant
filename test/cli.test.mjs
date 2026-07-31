@@ -76,7 +76,8 @@ test('doctor reports a structured FAIL when Codex is missing instead of crashing
   assert.equal(await main(['doctor'], context), 1);
   const text = output.read();
   assert.match(text, /^FAIL Node /m);
-  assert.match(text, /FAIL Codex codex not found on PATH/);
+  assert.match(text, /^INFO provider codex \(Codex CLI\); available: codex, kiro$/m);
+  assert.match(text, /FAIL codex codex not found on PATH/);
   assert.match(text, /FAIL codex not found on PATH/);
   assert.doesNotMatch(text, /spawn codex ENOENT/);
 });
@@ -97,7 +98,9 @@ test('doctor --json stays parseable when Codex spawn fails', async () => {
   assert.equal(await main(['doctor', '--json'], context), 1);
   const payload = JSON.parse(output.read());
   assert.equal(payload.ok, false);
-  assert.match(payload.codex, /codex not found on PATH/);
+  assert.match(payload.backend, /codex not found on PATH/);
+  assert.equal(payload.provider.id, 'codex');
+  assert.equal(payload.provider.executable, 'codex');
   assert.equal(payload.error, undefined);
 });
 
