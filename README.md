@@ -38,7 +38,9 @@ still verify. Nothing was published to npm under `relay10` or `disciplinedrun`.
 
 Single CLI: **`rein`**. Config `rein.config.json`, run dir `.rein/`, skill ids
 `rein-*`. The old `relay10` / `r10` / `dpr` / `disciplinedrun` commands and the
-`.relay10/` path are removed in `0.2.0`.
+`.relay10/` path are removed in `0.2.0`. The npm package is **`rein-cli`**,
+because the bare `rein` name on npm belongs to an unrelated, abandoned template
+library; the installed binary is still `rein`.
 
 ## What it does
 
@@ -143,7 +145,7 @@ controlled-run surface.
 | Codex with an xAI/Grok custom provider as a **stage executor** | Experimental candidate, untested | Not the same as Grok skill-host support. |
 | Anthropic/Claude or Google Gemini APIs as CLI stage executors | Unsupported in 0.2 | Skill-host support for Claude Code is separate and already works. |
 | Mixed providers in one CLI run | Unsupported | Stage config holds a model, not a provider switch. |
-| Codex desktop app or IDE | Indirect shell use only | Can invoke `rein` / `rein` / `rein`; no native progress UI. |
+| Codex desktop app or IDE | Indirect shell use only | Can invoke `rein`; no native progress UI. |
 | ChatGPT app/web or a standalone GUI | Not implemented | Needs MCP/Apps SDK or a local sidecar. |
 
 Skills guide the host agent; they do not silently replace that host’s model for
@@ -198,7 +200,7 @@ a session opened inside a clone of this repository loads the same skills through
 `.claude/skills` or `.agents/skills` without installing anything. Grok Build
 discovers the pack via `.agents/skills` (and optional Claude-compat skill
 paths). Skills guide the host agent on Claude Code, Grok Build, or Codex.
-Optional `rein run` / `rein run` model stages still use Codex CLI in
+Optional `rein run` model stages still use Codex CLI in
 0.2.
 The pack follows progressive disclosure and contains original clean-room text.
 The Skill-ecosystem
@@ -241,14 +243,13 @@ rein report [run-id] [--output file]
 rein replay [run-id] --frozen [--output file]
 ```
 
-Full binary: `rein`. Same commands work as `rein`, `rein`, or `rein`.
+Single binary: `rein`. There are no aliases.
 
 The inherited v0.1 `replay --frozen` contract verifies the recorded hashes and
 either reports the saved `report.html` path or copies that exact file outside
 the run directory. `report` is the separate model-free re-render command and
 writes a new file. A frozen replay is not a full environment snapshot, resume
-facility, or proof that remote model behavior can be reproduced. Short alias `rein` and legacy `rein` /
-`rein` accept the same commands.
+facility, or proof that remote model behavior can be reproduced.
 
 ## Configuration
 

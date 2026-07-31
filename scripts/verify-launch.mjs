@@ -51,6 +51,15 @@ const log = {
   passed: commands.every((command) => command.passed),
   commands,
 };
-await writeJson(path.join(root, 'docs', 'launch-verification.json'), log);
+// docs/launch-verification.json is the frozen v0.1.1 Relay10 launch evidence and
+// must not be regenerated: rewriting it would replace released evidence with a
+// fresh log. Write to the gitignored outputs/ directory instead, and only touch
+// the archived file when --freeze is passed explicitly.
+const freeze = process.argv.includes('--freeze');
+const target = freeze
+  ? path.join(root, 'docs', 'launch-verification.json')
+  : path.join(root, 'outputs', 'launch-verification.json');
+await writeJson(target, log);
 process.stdout.write(`launch verification: ${commands.filter((command) => command.passed).length}/${commands.length} commands passed\n`);
+process.stdout.write(`log: ${path.relative(root, target)}${freeze ? ' (overwrote frozen v0.1.1 evidence)' : ''}\n`);
 if (!log.passed) process.exitCode = 2;

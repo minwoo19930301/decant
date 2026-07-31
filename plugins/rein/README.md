@@ -1,6 +1,6 @@
 # Rein Plugin
 
-The plugin package id and Skill ids remain `rein` / `rein-*` in version
+The plugin package id is `rein` and Skill ids are `rein-*` in version
 0.2 so existing host installations continue to resolve them. The npm package
 and primary CLI are `rein`.
 
