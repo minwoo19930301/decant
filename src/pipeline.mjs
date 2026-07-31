@@ -12,7 +12,8 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { mapPool, runCodex, runVerification } from './executor.mjs';
+import { mapPool, runVerification } from './executor.mjs';
+import { DEFAULT_PROVIDER, resolveProvider } from './providers/index.mjs';
 import {
   architectPrompt,
   explainerPrompt,
@@ -865,11 +866,18 @@ export async function runPipeline({
   liveReaders = config?.readerGate?.mode === 'live',
   budgetCalls,
   allowVerificationCommands = false,
-  runCodexImpl = runCodex,
+  provider,
+  runCodexImpl,
   runVerificationImpl = runVerification,
   now = () => new Date(),
   idFactory,
 } = {}) {
+  // The pipeline never names a CLI. It resolves whichever provider the config
+  // selected and calls the one stage contract every provider implements, so
+  // adding an execution backend does not touch this file. `runStageImpl` stays
+  // injectable for tests.
+  const activeProvider = provider ?? resolveProvider(config?.provider ?? DEFAULT_PROVIDER);
+  const runStageImpl = runCodexImpl ?? ((options) => activeProvider.runStage(options));
   const root = path.resolve(cwd);
   const { plan, budget } = validateRunRequest({
     task,
@@ -909,9 +917,19 @@ export async function runPipeline({
     updatedAt: clock(),
     assessment: plan.assessment,
     routingPolicy: plan.routingPolicy,
+    // Which backend actually ran the stages, and what it could and could not
+    // enforce. A report that does not say this cannot be read honestly: a
+    // "read-only" stage means a kernel sandbox on one provider and a tool
+    // allowlist on another.
+    provider: {
+      id: activeProvider.id,
+      displayName: activeProvider.displayName,
+      executable: activeProvider.executable,
+      capabilities: { ...activeProvider.capabilities },
+    },
     invocationEstimate: plan.invocationEstimate,
     invocations: { used: 0, budget },
-    calls: { used: 0, budget, unit: 'codex-exec-invocations' },
+    calls: { used: 0, budget, unit: `${activeProvider.id}-stage-invocations` },
     routing: plan.stages.map((stage) => ({
       stage: stage.id,
       profile: stage.modelRole,
@@ -983,7 +1001,7 @@ export async function runPipeline({
     await recordEvent('stage.started', { stage: stageId, model: stage.model, effort: stage.effort });
     const started = Date.now();
     try {
-      const result = await runCodexImpl({
+      const result = await runStageImpl({
         prompt,
         cwd: root,
         model: stage.model,
@@ -1321,7 +1339,7 @@ export async function runPipeline({
             const outputFile = path.join(runDir, `reader-${round}-${persona.id}.json`);
             consumeInvocation(`reader-${round}-${persona.id}`);
             try {
-              const result = await runCodexImpl({
+              const result = await runStageImpl({
                 prompt: liveReaderPrompt(draftFile, persona),
                 cwd: root,
                 model: selectedModel,

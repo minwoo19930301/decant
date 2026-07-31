@@ -1,10 +1,13 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
+import { DEFAULT_PROVIDER, PROVIDER_IDS } from "./providers/index.mjs";
+
 export const CONFIG_FILENAME = "rein.config.json";
 
 export const DEFAULT_CONFIG = deepFreeze({
   version: 1,
+  provider: DEFAULT_PROVIDER,
   catalog: {
     overrides: {},
   },
@@ -41,6 +44,7 @@ export const DEFAULT_CONFIG = deepFreeze({
 const ROOT_KEYS = Object.freeze([
   "$schema",
   "version",
+  "provider",
   "catalog",
   "routing",
   "effort",
@@ -249,6 +253,9 @@ export function validateConfig(config) {
   }
   if (!Object.hasOwn(config, "version")) configError("version", "is required");
   if (config.version !== 1) configError("version", "must equal 1", RangeError);
+  if (Object.hasOwn(config, "provider")) {
+    assertEnum(config.provider, PROVIDER_IDS, "provider");
+  }
 
   if (Object.hasOwn(config, "catalog")) validateCatalog(config.catalog);
   if (Object.hasOwn(config, "routing")) validateRouting(config.routing);
