@@ -130,7 +130,68 @@ test('a stage writes only the extracted answer to the output file', async (t) =>
   });
   assert.equal(seen.command, 'kiro-cli');
   assert.match(seen.args.at(-1), /"type": "object"/, 'the schema must reach the model');
-  assert.equal(await readFile(outputFile, 'utf8'), '{"ok":true}\n');
+  assert.equal(await readFile(outputFile, 'utf8'), '{\n  "ok": true\n}\n');
+});
+
+test('a drifted key is renamed from the schema, and the rename is reported', async (t) => {
+  const sandbox = await mkdtemp(path.join(tmpdir(), 'rein-provider-'));
+  t.after(() => rm(sandbox, { recursive: true, force: true }));
+  const schemaFile = path.join(sandbox, 'schema.json');
+  const outputFile = path.join(sandbox, 'scout.json');
+  await writeFile(schemaFile, JSON.stringify({
+    type: 'object',
+    required: ['summary', 'open_questions'],
+    properties: {
+      summary: { type: 'string' },
+      open_questions: { type: 'array', items: { type: 'string' } },
+    },
+  }), 'utf8');
+
+  // A live run produced exactly this: every value correct, one key spelled
+  // `openquestions`, and the whole stage rejected for it.
+  const result = await kiroProvider.runStage({
+    prompt: 'scout',
+    cwd: sandbox,
+    outputFile,
+    outputSchema: schemaFile,
+    timeoutMs: 1_000,
+    execute: async () => ({
+      code: 0,
+      stdout: `${OUTPUT_BEGIN}\n\`\`\`json\n{"summary":"s","openquestions":["q"]}\n\`\`\`\n${OUTPUT_END}\n`,
+      stderr: '',
+    }),
+  });
+  const written = JSON.parse(await readFile(outputFile, 'utf8'));
+  assert.deepEqual(written, { summary: 's', open_questions: ['q'] });
+  assert.deepEqual(result.schemaRepairs, ['openquestions -> open_questions']);
+});
+
+test('a missing key stays missing rather than being invented', async (t) => {
+  const sandbox = await mkdtemp(path.join(tmpdir(), 'rein-provider-'));
+  t.after(() => rm(sandbox, { recursive: true, force: true }));
+  const schemaFile = path.join(sandbox, 'schema.json');
+  const outputFile = path.join(sandbox, 'scout.json');
+  await writeFile(schemaFile, JSON.stringify({
+    type: 'object',
+    required: ['summary', 'facts'],
+    properties: { summary: { type: 'string' }, facts: { type: 'array' } },
+  }), 'utf8');
+
+  await kiroProvider.runStage({
+    prompt: 'scout',
+    cwd: sandbox,
+    outputFile,
+    outputSchema: schemaFile,
+    timeoutMs: 1_000,
+    execute: async () => ({
+      code: 0,
+      stdout: `${OUTPUT_BEGIN}\n{"summary":"s"}\n${OUTPUT_END}\n`,
+      stderr: '',
+    }),
+  });
+  // Fabricating `facts: []` would turn a visible stage failure into a silent
+  // one, so the gap is left for the pipeline's validator to reject.
+  assert.deepEqual(JSON.parse(await readFile(outputFile, 'utf8')), { summary: 's' });
 });
 
 test('a nonzero stage exit becomes an error carrying the captured result', async (t) => {

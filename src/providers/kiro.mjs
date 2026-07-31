@@ -6,7 +6,9 @@ import { spawnCapture } from '../executor.mjs';
 import {
   assertProvider,
   catalogFromIds,
+  coerceToSchema,
   extractOutput,
+  parseLooseJson,
   wrapPrompt,
 } from './contract.mjs';
 
@@ -121,7 +123,14 @@ export const kiroProvider = assertProvider({
       throw error;
     }
     const output = extractOutput(result.stdout);
-    await writeFile(path.resolve(outputFile), `${output}\n`, 'utf8');
-    return result;
+    if (!schema) {
+      await writeFile(path.resolve(outputFile), `${output}\n`, 'utf8');
+      return result;
+    }
+    // This adapter promised a shape it cannot enforce, so it repairs the drift it
+    // can repair from the schema's own vocabulary, and reports what it changed.
+    const { value, renamed } = coerceToSchema(parseLooseJson(output), schema);
+    await writeFile(path.resolve(outputFile), `${JSON.stringify(value, null, 2)}\n`, 'utf8');
+    return { ...result, schemaRepairs: renamed };
   },
 });

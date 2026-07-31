@@ -85,8 +85,7 @@ export function extractOutput(transcript) {
  * ranking.
  *
  * @param {string[]} ids in the provider's own preference order
- */
-export function catalogFromIds(ids) {
+ */export function catalogFromIds(ids) {
   const hints = [
     [/opus/i, 'frontier flagship most capable'],
     [/sonnet/i, 'balanced everyday strong general'],
@@ -108,9 +107,80 @@ export function catalogFromIds(ids) {
     });
 }
 
+const NORMALISE = /[^a-z0-9]/g;
+
+function normaliseKey(key) {
+  return String(key).toLowerCase().replace(NORMALISE, '');
+}
+
+/**
+ * Pull a JSON object out of a model's answer.
+ *
+ * Even when asked for bare JSON, a model may wrap it in a fence or add a
+ * sentence. This trims those two habits and nothing else — it does not repair
+ * malformed JSON, because guessing at broken syntax would hide a real failure.
+ */
+export function parseLooseJson(text) {
+  let body = String(text).trim();
+  const fence = body.match(/^```(?:json)?\s*\n([\s\S]*?)\n?```$/);
+  if (fence) body = fence[1].trim();
+  try {
+    return JSON.parse(body);
+  } catch {
+    const first = body.indexOf('{');
+    const last = body.lastIndexOf('}');
+    if (first >= 0 && last > first) return JSON.parse(body.slice(first, last + 1));
+    throw new SyntaxError('provider answer was requested as JSON but is not parseable');
+  }
+}
+
+/**
+ * Rename keys that drifted, using the schema's own vocabulary.
+ *
+ * A provider whose `outputSchema` capability is `'prompted'` asked for a shape
+ * rather than enforcing one, so it owns the gap. The commonest drift is a key
+ * spelled differently: a live run produced `openquestions` where the schema says
+ * `open_questions`, which failed validation while every value was correct.
+ *
+ * The repair is deliberately narrow. A key is renamed only when its normalised
+ * form — lowercased with non-alphanumerics removed — equals the normalised form
+ * of a key the schema declares. `openquestions` and `open_questions` both
+ * normalise to `openquestions`, so that is a rename, not a guess. Nothing is
+ * invented: a missing key stays missing and validation still fails, because
+ * fabricating a value would turn a visible failure into a silent one.
+ *
+ * @returns {{value: unknown, renamed: string[]}}
+ */
+export function coerceToSchema(value, schema) {
+  const renamed = [];
+  const walk = (node, shape, path) => {
+    if (!shape || typeof shape !== 'object') return node;
+    if (Array.isArray(node)) {
+      const items = shape.items;
+      return items ? node.map((entry, index) => walk(entry, items, `${path}[${index}]`)) : node;
+    }
+    if (!node || typeof node !== 'object') return node;
+    const properties = shape.properties;
+    if (!properties) return node;
+    const byNormalised = new Map(
+      Object.keys(properties).map((key) => [normaliseKey(key), key]),
+    );
+    const out = {};
+    for (const [key, entry] of Object.entries(node)) {
+      const canonical = Object.hasOwn(properties, key)
+        ? key
+        : byNormalised.get(normaliseKey(key));
+      if (canonical && canonical !== key) renamed.push(`${path}${key} -> ${canonical}`);
+      const target = canonical ?? key;
+      out[target] = walk(entry, properties[target], `${path}${target}.`);
+    }
+    return out;
+  };
+  return { value: walk(value, schema, ''), renamed };
+}
+
 /** Validate that an object satisfies the provider contract. */
-export function assertProvider(provider) {
-  for (const key of ['id', 'displayName', 'executable', 'capabilities']) {
+export function assertProvider(provider) {  for (const key of ['id', 'displayName', 'executable', 'capabilities']) {
     if (!provider?.[key]) throw new TypeError(`provider is missing ${key}`);
   }
   for (const method of ['discoverCatalog', 'runStage']) {
