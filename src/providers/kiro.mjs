@@ -122,7 +122,9 @@ export const kiroProvider = assertProvider({
       error.result = result;
       throw error;
     }
-    const output = extractOutput(result.stdout);
+    const { output, fallback } = extractOutput(result.stdout, {
+      expect: schema ? 'json' : 'text',
+    });
     if (!schema) {
       await writeFile(path.resolve(outputFile), `${output}\n`, 'utf8');
       return result;
@@ -131,6 +133,6 @@ export const kiroProvider = assertProvider({
     // can repair from the schema's own vocabulary, and reports what it changed.
     const { value, renamed } = coerceToSchema(parseLooseJson(output), schema);
     await writeFile(path.resolve(outputFile), `${JSON.stringify(value, null, 2)}\n`, 'utf8');
-    return { ...result, schemaRepairs: renamed };
+    return { ...result, schemaRepairs: renamed, sentinelFallback: fallback };
   },
 });

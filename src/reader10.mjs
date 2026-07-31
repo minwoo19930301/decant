@@ -110,8 +110,27 @@ function inspectLinks(source) {
   return links;
 }
 
+/**
+ * Strip regions where markup is being *quoted* rather than rendered.
+ *
+ * A live A/B run on a task that builds an HTML game produced two false critical
+ * failures: the maker's write-up quoted `<img ...>` from the game source, and the
+ * gate counted those as images in the report that were missing alt text. Markup
+ * inside a code block, a `<pre>`, or an escaped span is content, not structure,
+ * so structural checks must not see it.
+ */
+function withoutQuotedMarkup(source) {
+  return String(source)
+    .replace(/<pre\b[\s\S]*?<\/pre>/gi, ' ')
+    .replace(/<code\b[\s\S]*?<\/code>/gi, ' ')
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`[^`\n]*`/g, ' ')
+    .replace(/&lt;[\s\S]*?&gt;/gi, ' ');
+}
+
 function inspectImages(source) {
-  const images = [...source.matchAll(/<img\b([^>]*)>/gi)];
+  const markup = withoutQuotedMarkup(source);
+  const images = [...markup.matchAll(/<img\b([^>]*)>/gi)];
   return {
     count: images.length,
     missingAlt: images.filter((match) => !/\balt\s*=\s*(['"])[\s\S]*?\1/i.test(match[1])).length,
@@ -119,7 +138,8 @@ function inspectImages(source) {
 }
 
 function inspectTables(source) {
-  const tables = [...source.matchAll(/<table\b[^>]*>([\s\S]*?)<\/table>/gi)];
+  const markup = withoutQuotedMarkup(source);
+  const tables = [...markup.matchAll(/<table\b[^>]*>([\s\S]*?)<\/table>/gi)];
   return {
     count: tables.length,
     withoutHeaders: tables.filter((match) => !/<th\b/i.test(match[1])).length,

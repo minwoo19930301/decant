@@ -183,3 +183,39 @@ test('any declared document language satisfies the lang check', () => {
     assert.equal(langCheck.passed, true, `lang="${lang}" must satisfy the lang check`);
   }
 });
+
+test('markup quoted inside code is content, not structure', () => {
+  // A live A/B run on a task that builds an HTML game failed with two critical
+  // issues: the write-up quoted `<img ...>` from the game source, and the gate
+  // counted those as report images missing alt text.
+  const quoting = [
+    '<!doctype html><html lang="en"><head><title>t</title>',
+    '<meta name="viewport" content="width=device-width"></head><body><main>',
+    '<h1>Run report</h1>',
+    '<p>Summary: purpose, next steps, prerequisites, failure handling,',
+    'evidence at https://example.com</p>',
+    '<pre><code>&lt;img src="flamingo.png"&gt;</code></pre>',
+    '<p>The maker also wrote <code>&lt;table&gt;&lt;tr&gt;&lt;td&gt;x&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;</code>.</p>',
+    '</main></body></html>',
+  ].join('\n');
+
+  const evaluated = evaluateReader10(quoting, { task: 't', summary: 'Summary of t' });
+  const critical = evaluated.personas
+    .flatMap((persona) => persona.checks)
+    .filter((entry) => entry.severity === 'critical' && !entry.passed);
+  assert.deepEqual(critical, [], 'quoted markup must not raise critical issues');
+});
+
+test('a real image without alt is still critical', () => {
+  const withImage = [
+    '<!doctype html><html lang="en"><head><title>t</title>',
+    '<meta name="viewport" content="width=device-width"></head><body><main>',
+    '<h1>Run report</h1><img src="chart.png">',
+    '<p>Summary: purpose, next steps, prerequisites, failure handling,',
+    'evidence at https://example.com</p></main></body></html>',
+  ].join('\n');
+  const critical = evaluateReader10(withImage, { task: 't', summary: 'Summary of t' })
+    .personas.flatMap((persona) => persona.checks)
+    .filter((entry) => entry.severity === 'critical' && !entry.passed);
+  assert.ok(critical.some((entry) => entry.id === 'alt'), 'a genuine bare <img> must fail');
+});
