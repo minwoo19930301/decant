@@ -1,0 +1,4 @@
+interface:
+  display_name: "Decant Spec"
+  short_description: "Clarify blocking decisions and confirm a task contract"
+  default_prompt: "Use $decant-spec to inspect repo facts, ask only blocking decisions, and confirm the smallest verifiable task contract."

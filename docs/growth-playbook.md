@@ -1,11 +1,11 @@
-# Rein 30/60/90 development and promotion playbook
+# Decant 30/60/90 development and promotion playbook
 
 기준일: **2026-07-14**. 이 계획의 목표는 별 수를 빠르게 늘리는 것이 아니라,
 처음 온 사람이 안전하게 한 번 성공하고 30일 안에 다시 쓰는 제품을 만드는 것이다.
 
 ## 한 문장 포지셔닝
 
-> Rein은 Codex를 갈아엎지 않고, 읽기·계획·구현·검토·설명을 위험도에
+> Decant은 Codex를 갈아엎지 않고, 읽기·계획·구현·검토·설명을 위험도에
 > 맞게 나누고 모든 handoff를 파일로 남기는 작은 harness다.
 
 지금 말할 수 있는 범위는 “Codex CLI에서 검증됨, main에 여덟 Skill과
@@ -16,7 +16,7 @@ Codex·Claude Code Plugin preview가 있음”이다. “가장 싸다”, “�
 ## North-star와 보조 지표
 
 North-star는 **동의한 tester cohort에서 30일 안에 두 번째 성공 run을 만든
-외부 사용자 수**다. Rein core에 추적 telemetry를 넣지 않는다. 첫 성공 날짜,
+외부 사용자 수**다. Decant core에 추적 telemetry를 넣지 않는다. 첫 성공 날짜,
 익명 run ID, 7일·30일 재사용 여부를 tester가 동의한 인터뷰·제출 form으로만
 기록한다. 단순 clone, star, page view는 사용자 단위 funnel로 연결할 수 없으므로
 aggregate 보조 지표로만 본다.
@@ -33,7 +33,7 @@ aggregate 보조 지표로만 본다.
 
 ### 제품
 
-- macOS와 Linux에서 `clone → npm link → rein doctor → route → dry-run`을 한
+- macOS와 Linux에서 `clone → npm link → decant doctor → route → dry-run`을 한
   문서로 고정한다. Windows는 검증 전까지 실험 또는 미지원으로 표시한다.
 - 필수 gate는 research, bug fix, small feature, release check 공개 fixture 4개와
   실제 저장소 golden demo 1개다. stretch goal로 fixture 12개와 demo 3개까지 늘린다.
@@ -125,7 +125,7 @@ Show GN은 직접 만든 실행 가능한 제품·오픈소스를 시험하고 �
 
 권장 제목:
 
-> Show GN: Codex를 바꾸지 않고 단계별 모델 역할과 근거를 남기는 Rein
+> Show GN: Codex를 바꾸지 않고 단계별 모델 역할과 근거를 남기는 Decant
 
 본문 순서: 개인적 문제 → 30초 실행법 → OMO/글로벌 harness와 다른 좁은 선택 →
 실제 artifact → 미지원 범위 → 받고 싶은 피드백 2개.
@@ -138,7 +138,7 @@ Show HN은 사용자가 직접 실행할 수 있어야 하며 signup 장벽을 �
 
 권장 제목:
 
-> Show HN: Rein – a small evidence-first router for Codex tasks
+> Show HN: Decant – a small evidence-first router for Codex tasks
 
 README를 영어로 읽을 수 있고, clean install이 되며, 세 개 demo와 raw evidence가
 준비된 뒤 한 번만 올린다.

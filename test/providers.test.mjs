@@ -77,7 +77,7 @@ test('extractOutput takes the last block and survives quoted transcript lines', 
     ' ▸ Credits: 0.02',
   ].join('\n');
   assert.equal(extractOutput(transcript), 'real answer line one\nline two');
-  assert.throws(() => extractOutput('no sentinels here'), /did not contain a Rein sentinel block/);
+  assert.throws(() => extractOutput('no sentinels here'), /did not contain a Decant sentinel block/);
 });
 
 test('a provider without capability metadata still gets labelled roles, marked heuristic', () => {
@@ -103,7 +103,7 @@ test('model discovery parses the probe listing and reports an unreadable probe',
 });
 
 test('a stage writes only the extracted answer to the output file', async (t) => {
-  const sandbox = await mkdtemp(path.join(tmpdir(), 'rein-provider-'));
+  const sandbox = await mkdtemp(path.join(tmpdir(), 'decant-provider-'));
   t.after(() => rm(sandbox, { recursive: true, force: true }));
   const schemaFile = path.join(sandbox, 'schema.json');
   const outputFile = path.join(sandbox, 'stage.json');
@@ -134,7 +134,7 @@ test('a stage writes only the extracted answer to the output file', async (t) =>
 });
 
 test('a nonzero stage exit becomes an error carrying the captured result', async (t) => {
-  const sandbox = await mkdtemp(path.join(tmpdir(), 'rein-provider-'));
+  const sandbox = await mkdtemp(path.join(tmpdir(), 'decant-provider-'));
   t.after(() => rm(sandbox, { recursive: true, force: true }));
   await assert.rejects(
     () => kiroProvider.runStage({

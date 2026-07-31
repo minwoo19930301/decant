@@ -1,212 +1,248 @@
-# Rein
+# Decant
 
-> Keep a coding-agent run on a short rein.
-> Explicit scope. Risk-aware effort. Inspectable evidence. Separate verdicts.
+> Pour off what coding-agent harnesses do well. Leave the sediment.
 
-**Rein** is a small agent-run harness with zero third-party npm runtime
-dependencies. It combines a portable eight-skill workflow pack with an optional
-CLI pipeline. The pack loads on **Codex, Claude Code, and Grok Build**. The CLI
-maps a local model catalog into `frontier` / `balanced` / `economy` labels,
-records stage handoffs as files, keeps command and reviewer results separate
-from report-clarity checks, and renders a standalone HTML run report whose
-artifacts can be re-verified by hash.
+## What this is, in plain terms
 
-Read these three limits before deciding whether to install it:
+When you hand a real task to a coding agent, you usually get one long answer and
+no way to check how it got there. There are plenty of harnesses that try to fix
+that, and most of them are big: their own runtime, their own agent teams, their
+own UI.
 
-1. **Model stages run through the Codex CLI only.** There is no executor or
-   provider abstraction: every model stage shells out to `codex exec`, and the
-   model catalog comes from `codex debug models`. The Skill pack is portable to
-   other hosts; the CLI pipeline is not.
-2. **Generated reports are Korean.** `report.html` is emitted with
-   `lang="ko"`, Korean section labels, and the Reader-10 clarity heuristics
-   match Korean tokens. An English-only report will not pass the clarity gate.
-3. **Routing is a hand-weighted keyword score, not a measured policy.** Five
-   task dimensions are scored from regex patterns with hand-picked weights and
-   two thresholds. No calibration data backs those numbers, and there is no
-   published comparison against running Codex directly.
+**Decant is the small version.** It keeps four habits that earn their weight and
+throws the rest away:
 
-`--budget-calls` is a hard ceiling on **pipeline stage launches** (Codex
-subprocesses), not on tokens, provider-internal turns, or currency. The
-`frontier` / `balanced` / `economy` labels come from catalog metadata and user
-overrides; they are not live price measurements, benchmarks, or guarantees that
-Rein picked the cheapest, weakest, or strongest available model.
+1. **Look before you build.** A cheap read-only pass inspects the repository
+   first. What it finds decides whether the expensive model is worth calling at
+   all.
+2. **Write every step to a file.** Each stage's output lands in
+   `.decant/runs/<id>/` as an ordinary file you can open, diff, and keep. No
+   hidden state.
+3. **Don't blend the signals.** Your test commands, the reviewer model's
+   opinion, and the readability check are reported *separately*. One of them
+   passing is not the others passing.
+4. **Put a ceiling on it.** `--budget-calls` is a hard cap on how many times the
+   agent gets launched, so a run cannot quietly turn into thirty.
 
-This branch prepares the `0.2.0` rename release. The latest tagged release
-remains `v0.1.1` under the former **Relay10** name; `v0.1.1` launch evidence
-under `docs/launch-*` deliberately keeps the old names so its recorded hashes
-still verify, and `verify:launch` / `report:launch` / `audit:launch` now write
-to `outputs/` instead of overwriting it. Nothing was published to npm under `relay10` or `disciplinedrun`.
+And it does that **on top of the agent you already use** — it is not another
+model. Today it drives the Codex CLI or the Kiro CLI; adding another is one
+adapter file, not a rewrite.
 
-Single CLI: **`rein`**. Config `rein.config.json`, run dir `.rein/`, skill ids
-`rein-*`. The old `relay10` / `r10` / `dpr` / `disciplinedrun` commands and the
-`.relay10/` path are removed in `0.2.0`. The npm package is **`rein-cli`**,
-because the bare `rein` name on npm belongs to an unrelated, abandoned template
-library; the installed binary is still `rein`.
+## Why the name
+
+To decant is to pour a liquid carefully into another vessel so the clear part
+comes over and the sediment stays behind. That is both halves of the idea: keep
+the few practices worth keeping from the harnesses that already exist, and carry
+them into whatever model you happen to run underneath.
+
+It promises subtraction and transfer. It does not promise proof — see the limits
+below.
+
+## 한국어 요약
+
+여러 코딩 에이전트 하네스에서 **값어치 하는 습관만 따라내고 나머지는 버린** 얇은
+도구입니다. 새 모델이 아니라, 지금 쓰는 에이전트 위에 얹는 층입니다.
+
+- **먼저 보고 나서 만든다** — 값싼 읽기 전용 정찰이 저장소를 먼저 훑고, 그 결과로
+  비싼 모델을 부를 가치가 있는지 판단합니다.
+- **모든 단계를 파일로 남긴다** — `.decant/runs/<id>/`에 평범한 파일로 쌓입니다.
+  숨은 상태가 없어서 열어보고 비교하고 보관할 수 있습니다.
+- **신호를 섞지 않는다** — 내가 지정한 테스트 명령, 리뷰어 모델의 의견, 가독성
+  검사를 **따로** 보고합니다. 하나가 통과한 것은 나머지가 통과한 것이 아닙니다.
+- **호출 상한을 둔다** — `--budget-calls`로 에이전트 실행 횟수를 하드 캡합니다.
+
+이름은 "디캔트"입니다. 침전물은 남기고 맑은 부분만 다른 그릇에 따라 옮기는 일.
+기존 하네스에서 쓸 만한 것만 골라내고(뺄셈), 그걸 어떤 모델 위로든 옮긴다(이동)는
+뜻입니다. 증명을 약속하는 이름이 아닙니다.
+
+**보고서와 가독성 검사는 현재 한국어 전용입니다.** 영어로만 쓴 보고서는 자기
+품질 게이트를 통과하지 못합니다.
+
+## Try it in 30 seconds
+
+Node 20+ and one agent CLI on your `PATH` (`codex` or `kiro-cli`).
+
+```bash
+git clone https://github.com/minwoo19930301/decant.git
+cd decant && npm link
+
+decant doctor                      # is the backend reachable? which models?
+decant route "add pagination to the users endpoint"   # what would it do, and why
+decant run "add pagination to the users endpoint" --dry-run   # plan only, nothing runs
+```
+
+`doctor` tells you which provider is selected and, importantly, what that
+provider can and cannot enforce:
+
+```text
+PASS Node v26.5.0
+INFO provider kiro (Kiro CLI); available: codex, kiro
+INFO sandbox=tool-allowlist outputSchema=prompted
+PASS kiro-cli kiro-cli 2.15.1
+PASS frontier: claude-opus-5/max
+PASS balanced: claude-sonnet-5/medium
+PASS economy: claude-haiku-4.5/low
+```
+
+To switch backends, put this in `decant.config.json`:
+
+```json
+{ "version": 1, "provider": "kiro" }
+```
+
+## What it will not do — read this before installing
+
+Being honest about this is the point of the tool, so it belongs above the
+feature list, not in a footnote.
+
+- **Routing is a keyword score, not a measured policy.** Five task dimensions
+  are scored with hand-picked regexes, weights, and two thresholds. Nothing in
+  this repository calibrates those numbers, and there is no published comparison
+  against just prompting the model directly.
+- **Reports are Korean.** `report.html` is emitted with `lang="ko"`, Korean
+  labels, and clarity heuristics that match Korean tokens.
+- **Reader-10 is a linter, not a jury.** The default mode is ten *named
+  personas sharing one rule engine* — a structural and accessibility check over
+  the report. Live mode makes ten model calls that may all be the same model.
+  Neither establishes that the code is correct.
+- **Hash-frozen replay detects drift, it does not notarise.** Artifacts are
+  hashed into the run manifest and `report` never overwrites `report.html`, so
+  you can tell if local files changed. That is not an external notary or a
+  tamper-proof ledger.
+- **Model role labels are labels.** `frontier` / `balanced` / `economy` come
+  from provider metadata, your overrides, or — for a provider that exposes no
+  metadata — a guess based on the model's family name. They are not price
+  measurements or benchmark results.
+- **A failed stage stops the run.** There is no retry, no resume, and no
+  rollback. If the budget runs out mid-run you are left with a partial change.
+- **Providers are not interchangeable.** Codex enforces a JSON schema and a
+  kernel sandbox. The Kiro adapter asks for the schema in the prompt and grants
+  a tool allowlist, which is weaker. `doctor` and the run manifest both say
+  which one you got.
+
+`--budget-calls` caps **agent launches**, not tokens, provider-internal turns,
+or money.
+
+The last tagged release is `v0.1.1`, made under the project's original name
+**Relay10**. The `v0.1.1` evidence under `docs/launch-*` deliberately keeps the
+old names so its recorded hashes still verify; `verify:launch`, `report:launch`,
+and `audit:launch` write to `outputs/` rather than overwriting it. Nothing has
+been published to npm under any name yet.
 
 ## What it does
 
 - **Risk-aware routing:** five keyword-scored task dimensions select stage
   profiles, then scout evidence decides whether an economy task needs the
-  frontier architect. `0.2` still does not escalate after a failed stage, and
-  has no retry or resume.
-- **Host-first skills:** repo skills for Codex, Claude Code, and Grok Build,
-  plus one Node CLI on builtins only.
-- **Inspectable handoffs:** each completed stage has a declared role, effort,
-  sandbox, output path, and event record.
-- **Separate signals:** explicitly configured commands, a model reviewer, and
-  Reader-10 results are shown separately instead of being presented as one
-  proof of correctness.
-- **Hash-frozen replay:** artifacts are hashed into the run manifest, `report`
-  never overwrites `report.html`, and `replay --frozen` re-verifies the stored
-  hashes. This detects drift in local files; it is not an external notary or a
-  tamper-proof ledger.
-- **Two Reader-10 modes:** the default deterministic mode is a structural and
-  accessibility linter over the report — ten named personas that share one rule
-  engine, not ten independent readers. Live mode makes ten reader-model
-  invocations per round, which may all be the same model; neither mode
-  establishes factual correctness.
+  frontier architect.
+- **Pluggable backend:** one provider contract covers model discovery and stage
+  execution. `codex` and `kiro` ship today; each declares its own capabilities
+  rather than pretending to be equivalent.
+- **Host-first skills:** eight repo skills for Codex, Claude Code, and Grok
+  Build, plus one Node CLI that uses only Node builtins — no third-party runtime
+  dependencies.
+- **Inspectable handoffs:** every completed stage records a role, effort,
+  sandbox, output path, and event.
+- **Separate signals:** configured commands, the model reviewer, and Reader-10
+  are presented as three different things.
+- **Hash-frozen replay:** `replay --frozen` re-verifies the stored hashes and
+  never mutates the frozen run.
 
+## Why this instead of a batteries-included harness
 
-## Why Rein instead of a batteries-included harness
+Choose Decant when you want controlled, inspectable work:
 
-Rein favors controlled, inspectable work over maximum built-in
-autonomy. Choose it when you want:
+- **Explicit scope first.** The optional `decant-spec` Skill records outcome,
+  non-goals, acceptance evidence, and a rollback plan. That is guidance for the
+  host agent; `decant run` does not ingest or enforce it.
+- **Risk-aware effort.** Under the default conditional policy the task score
+  tunes maker and reviewer effort, and after the scout an evidence checkpoint
+  decides whether economy work needs frontier advice. A hand-tuned heuristic,
+  not calibrated routing.
+- **A hard ceiling on launches.** `--budget-calls` bounds stage launches.
+- **Ordinary files.** Handoffs and events stay readable under
+  `.decant/runs/<id>/`.
 
-- **Explicit scope before implementation.** The optional `rein-spec` Skill
-  can record the outcome, non-goals, acceptance evidence, and rollback plan.
-  This is host-agent workflow guidance; `rein run` does not automatically ingest
-  or enforce that contract.
-- **Risk-aware effort and advice.** Under the default conditional policy, five
-  keyword-scored task dimensions tune maker and reviewer effort. After the
-  scout, an evidence checkpoint decides whether economy-tier work needs frontier
-  architect advice. Stage model roles remain declared contracts; this is a
-  hand-tuned heuristic, not live-price, measured-spend, or calibrated routing.
-- **A hard ceiling on CLI stage launches.** For `rein run`, `--budget-calls`
-  limits Rein pipeline stage launches (Codex subprocesses in 0.2).
-  It does not count provider-internal turns, tokens, or currency.
-- **Inspectable artifacts and separate verdicts.** Stage handoffs and events
-  remain ordinary files under `.rein/runs/<id>/`. Configured command results,
-  the model reviewer, and Reader-10 clarity results are reported separately.
-  These artifacts support inspection; they are not a complete audit trail or
-  proof of correctness.
-
-Choose a batteries-included harness instead when you need native teams or
-swarms, background agents, retry-until-done loops, durable checkpoint/resume,
-or a broader built-in runtime or UI. Rein deliberately keeps those
-features out of its core.
-
-## Quick start
-
-**Skill hosts (Codex, Claude Code, Grok Build):** clone the repo (or install
-the Claude marketplace plugin). Skills appear via `.agents/skills` /
-`.claude/skills`. No separate Codex install is required just to load skills.
-
-**Optional controlled CLI pipeline:** Node 20+ and, for live
-`rein run` model stages, an authenticated Codex CLI on `PATH`.
-
-```bash
-git clone https://github.com/minwoo19930301/rein.git
-cd rein
-npm link
-
-# single CLI: rein
-rein doctor
-rein init
-rein route "research the API and build a small CLI"
-rein run "research the API and build a small CLI" --dry-run
-rein run "research the API and build a small CLI"
-```
-
-To request live Reader-10, which schedules ten separate reader invocations per
-round:
-
-```bash
-rein run "your task" --live-readers --budget-calls 30
-```
-
-Different reader roles may use the same model or models from the same family;
-ten invocations do not guarantee ten independent judgments. The invocation
-budget counts Rein pipeline stage launches (Codex subprocesses in
-0.2), not provider-internal model turns, tokens, or currency cost.
-
-The report is written under `.rein/runs/<run-id>/report.html`.
+Choose a bigger harness instead when you need agent teams or swarms, background
+agents, retry-until-done loops, durable checkpoint and resume, or a built-in UI.
+Decant deliberately leaves those out.
 
 ## Current provider and app support
 
-The Rein 0.2.0 preview is **host-first**. The skill pack runs on the
+The Decant 0.2.0 preview is **host-first**. The skill pack runs on the
 coding agent you already use. The optional CLI pipeline is a separate
 controlled-run surface.
 
 | Target | Current status | What that means |
 |---|---|---|
 | Claude Code as a Skill and Plugin host | Preview; host path verified 2026-07-15, renamed manifests statically validated 2026-07-17 | Marketplace / `.claude/skills` load all eight skills. This is Skill-host guidance, not native stage execution. |
-| Grok Build / Grok CLI as a Skill host | Preview, verified 2026-07-15 | `.agents/skills` loads the same pack. This is Skill-host guidance, not xAI stage execution. Note: the pinned Grok Build client source contains an `opt-in` fallback for "Coding data sharing," but effective account or server policy can override it. Rein never launches Grok or sees that setting—confirm the current policy in your own session; see the [pinned evidence note](docs/grokbuild-distillation.md). |
+| Grok Build / Grok CLI as a Skill host | Preview, verified 2026-07-15 | `.agents/skills` loads the same pack. This is Skill-host guidance, not xAI stage execution. Note: the pinned Grok Build client source contains an `opt-in` fallback for "Coding data sharing," but effective account or server policy can override it. Decant never launches Grok or sees that setting—confirm the current policy in your own session; see the [pinned evidence note](docs/grokbuild-distillation.md). |
 | Codex as a Skill host | Repository surface, statically validated | Same pack via `.agents/skills` / plugin layout. |
-| Codex CLI as optional `rein run` stage runtime | Supported and tested | Live model stages still launch `codex exec` and discover models via `codex debug models` in 0.2. Skill-host use does not require this. |
-| Codex with an xAI/Grok custom provider as a **stage executor** | Experimental candidate, untested | Not the same as Grok skill-host support. |
-| Anthropic/Claude or Google Gemini APIs as CLI stage executors | Unsupported in 0.2 | Skill-host support for Claude Code is separate and already works. |
-| Mixed providers in one CLI run | Unsupported | Stage config holds a model, not a provider switch. |
-| Codex desktop app or IDE | Indirect shell use only | Can invoke `rein`; no native progress UI. |
+| Codex CLI as a `decant run` stage backend | Supported | `provider: "codex"` (the default). Native `--output-schema` and a kernel sandbox. Discovers models via `codex debug models`. |
+| Kiro CLI as a `decant run` stage backend | Supported; `doctor` verified 2026-07-31 | `provider: "kiro"`. No native final-message or schema channel, so the adapter fences the answer with sentinels and carries the schema in the prompt; isolation is a tool allowlist, not a sandbox. |
+| Any other CLI as a stage backend | Not included, but no longer a rewrite | Implement the `runStage` + `discoverCatalog` contract in `src/providers/`. The provider set is closed in code on purpose, so a checked-in config cannot choose which binary runs. |
+| Direct Anthropic / OpenAI / Gemini HTTP APIs | Unsupported | The contract assumes a CLI subprocess that writes a final answer. An HTTP provider would need its own adapter. |
+| Mixed providers in one run | Unsupported | Stage config holds a model; the provider is chosen per run. |
+| Codex desktop app or IDE | Indirect shell use only | Can invoke `decant`; no native progress UI. |
 | ChatGPT app/web or a standalone GUI | Not implemented | Needs MCP/Apps SDK or a local sidecar. |
 
 Skills guide the host agent; they do not silently replace that host’s model for
 every tool call. Evidence for host checks lives in
-[host-surface-verification.md](https://github.com/minwoo19930301/rein/blob/main/docs/host-surface-verification.md).
+[host-surface-verification.md](https://github.com/minwoo19930301/decant/blob/main/docs/host-surface-verification.md).
 See also the full
-[lineage and portability decision](https://github.com/minwoo19930301/rein/blob/main/docs/lineage-and-portability.md).
+[lineage and portability decision](https://github.com/minwoo19930301/decant/blob/main/docs/lineage-and-portability.md).
 
-<a id="rein-skill-pack"></a>
+<a id="decant-skill-pack"></a>
 
 ## Skill pack
 
-Rein distills recurring patterns from current global coding agents and
+Decant distills recurring patterns from current global coding agents and
 Agent Skill collections into eight on-demand skills instead of installing a
-large catalog. Skill ids were renamed from `relay10-*` to **`rein-*`** in
+large catalog. Skill ids were renamed from `relay10-*` to **`decant-*`** in
 `0.2.0`; a host that installed the `v0.1.1` pack must reinstall it:
 
 | Skill | Job | Important boundary |
 |---|---|---|
-| `rein-orchestrate` | choose the smallest useful workflow | does not switch the host agent's current task model |
-| `rein-research` | collect current read-only evidence | does not mutate a repository |
-| `rein-spec` | define outcome, non-goals, acceptance, and rollback | does not implement plan-only requests |
-| `rein-build` | implement an authorized change in small slices | does not publish |
-| `rein-debug` | reproduce and isolate root cause | diagnosis alone does not authorize repair |
-| `rein-review` | review a fixed baseline and report findings | remains read-only |
-| `rein-release` | prove package, artifact, hash, and support claims | requires explicit publication authority |
-| `rein-skill-lab` | tune triggers and compare against no-skill baseline | rejects skills without measured benefit |
+| `decant-orchestrate` | choose the smallest useful workflow | does not switch the host agent's current task model |
+| `decant-research` | collect current read-only evidence | does not mutate a repository |
+| `decant-spec` | define outcome, non-goals, acceptance, and rollback | does not implement plan-only requests |
+| `decant-build` | implement an authorized change in small slices | does not publish |
+| `decant-debug` | reproduce and isolate root cause | diagnosis alone does not authorize repair |
+| `decant-review` | review a fixed baseline and report findings | remains read-only |
+| `decant-release` | prove package, artifact, hash, and support claims | requires explicit publication authority |
+| `decant-skill-lab` | tune triggers and compare against no-skill baseline | rejects skills without measured benefit |
 
-The Confirmed Task Contract is an optional output of the `rein-spec` Skill.
-`rein run` does not automatically ingest, cryptographically bind, or
+The Confirmed Task Contract is an optional output of the `decant-spec` Skill.
+`decant run` does not automatically ingest, cryptographically bind, or
 enforce that contract. The same boundary applies to other Skill guidance: a
 host agent follows it; the CLI does not claim to turn every instruction into a
 runtime invariant.
 
-The canonical pack lives under `plugins/rein/skills`. `.agents/skills` and
+The canonical pack lives under `plugins/decant/skills`. `.agents/skills` and
 `.claude/skills` are relative symlinks to that directory so a cloned repository
 exposes the same skills to Codex, Claude Code, and Grok Build surfaces that
 scan those roots. The plugin manifests are at
-`plugins/rein/.codex-plugin/plugin.json` and
-`plugins/rein/.claude-plugin/plugin.json`, and the repository root
+`plugins/decant/.codex-plugin/plugin.json` and
+`plugins/decant/.claude-plugin/plugin.json`, and the repository root
 `.claude-plugin/marketplace.json` makes this repository installable as a Claude
 Code marketplace; all three pass their local validators but have not been
 published to a curated marketplace. To install the pack in Claude Code:
 
 ```text
-/plugin marketplace add minwoo19930301/rein
-/plugin install rein@rein
+/plugin marketplace add minwoo19930301/decant
+/plugin install decant@decant
 ```
 
-Installed Claude Code plugin skills appear namespaced as `rein:<skill-name>`;
+Installed Claude Code plugin skills appear namespaced as `decant:<skill-name>`;
 a session opened inside a clone of this repository loads the same skills through
 `.claude/skills` or `.agents/skills` without installing anything. Grok Build
 discovers the pack via `.agents/skills` (and optional Claude-compat skill
 paths). Skills guide the host agent on Claude Code, Grok Build, or Codex.
-Optional `rein run` model stages still use Codex CLI in
+Optional `decant run` model stages still use Codex CLI in
 0.2.
 The pack follows progressive disclosure and contains original clean-room text.
 The Skill-ecosystem
 source subset and license cautions are recorded in
-`plugins/rein/provenance/sources.json`; the complete agent, harness,
+`plugins/decant/provenance/sources.json`; the complete agent, harness,
 workflow, and Skill lineage is recorded in `docs/prior-art.md`.
 
 ## Default pipeline
@@ -235,16 +271,16 @@ budget has no advisor headroom.
 ## Commands
 
 ```text
-rein init [--force]
-rein doctor
-rein route <task> [--json]
-rein run <task> [--dry-run] [--live-readers] [--budget-calls N] [--allow-verification-commands]
-rein inspect [run-id] [--json]
-rein report [run-id] [--output file]
-rein replay [run-id] --frozen [--output file]
+decant init [--force]
+decant doctor
+decant route <task> [--json]
+decant run <task> [--dry-run] [--live-readers] [--budget-calls N] [--allow-verification-commands]
+decant inspect [run-id] [--json]
+decant report [run-id] [--output file]
+decant replay [run-id] --frozen [--output file]
 ```
 
-Single binary: `rein`. There are no aliases.
+Single binary: `decant`. There are no aliases.
 
 Configured verification commands are **skipped unless you pass
 `--allow-verification-commands`**. Without it a run that has commands configured
@@ -259,11 +295,11 @@ facility, or proof that remote model behavior can be reproduced.
 
 ## Configuration
 
-`rein init` writes `rein.config.json`, which is the only name the CLI reads.
+`decant init` writes `decant.config.json`, which is the only name the CLI reads.
 Model roles are derived from
 `codex debug models`; explicit model overrides take precedence. See the
-[example configuration](https://github.com/minwoo19930301/rein/blob/main/examples/rein.config.json)
-and [configuration schema](https://github.com/minwoo19930301/rein/blob/main/schema/config.schema.json).
+[example configuration](https://github.com/minwoo19930301/decant/blob/main/examples/decant.config.json)
+and [configuration schema](https://github.com/minwoo19930301/decant/blob/main/schema/config.schema.json).
 
 Verification commands are intentionally opt-in because project commands can
 have side effects. They use an executable plus literal argv array, not a shell
@@ -294,7 +330,7 @@ Advisor routing can be switched for comparison or compatibility:
 ```
 
 `conditional` is the default, `always` restores always-on architect invocation,
-and `never` disables the architect checkpoint. Rein
+and `never` disables the architect checkpoint. Decant
 records invocation counts but does not currently observe provider tokens or
 billed currency, so these modes must not be described as a measured percentage
 cost saving without an external evaluation.
@@ -316,14 +352,13 @@ slugs:
 
 ## Version 0.2 preview limits
 
-- The verified stage runtime is Codex CLI. Direct OpenAI, xAI/Grok,
-  Anthropic/Claude, and Gemini API adapters are not included, and providers
-  cannot be mixed by stage. Grok Build skill-host loading is separate from
-  xAI stage execution and does not change this limit.
+- Two stage backends ship: `codex` and `kiro`. They are not equivalent — see the
+  capability row in `doctor` and the `provider` block in the run manifest. Direct
+  Anthropic, OpenAI, xAI, and Gemini HTTP adapters are not included, and
+  providers cannot be mixed within one run.
 - There is no MCP server, Apps SDK UI, or standalone GUI. Skill/Plugin surfaces
   cover Codex and Claude Code; Grok discovers skills via `.agents/skills`.
-  CLI stage runtime remains Codex-backed in 0.2.
-- The scout is a general read/search Codex stage, not a dedicated crawler,
+- The scout is a general read/search agent stage, not a dedicated crawler,
   browser automation system, or site-specific extraction engine.
 - Deterministic Reader-10 checks structure, length, terminology, links, and
   accessibility signals. It does not semantically understand the report.
@@ -344,15 +379,15 @@ slugs:
 
 ## Design and research
 
-- [Architecture](https://github.com/minwoo19930301/rein/blob/main/docs/architecture.md)
-- [Harness trade-offs, selected patterns, provider and app portability](https://github.com/minwoo19930301/rein/blob/main/docs/lineage-and-portability.md)
-- [Korean harness landscape](https://github.com/minwoo19930301/rein/blob/main/docs/korea-landscape.md)
-- [Global harness landscape](https://github.com/minwoo19930301/rein/blob/main/docs/global-landscape.md)
-- [Top global repositories and distilled patterns](https://github.com/minwoo19930301/rein/blob/main/docs/global-top-repos.md)
-- [Conditional advisor evidence and routing decision](https://github.com/minwoo19930301/rein/blob/main/docs/conditional-advisor-routing.md)
-- [Clean-room prior art ledger](https://github.com/minwoo19930301/rein/blob/main/docs/prior-art.md)
-- [30/60/90 development and promotion playbook](https://github.com/minwoo19930301/rein/blob/main/docs/growth-playbook.md)
-- [Relay10 v0.1.1 historical launch report](https://github.com/minwoo19930301/rein/blob/main/docs/launch-report.html)
+- [Architecture](https://github.com/minwoo19930301/decant/blob/main/docs/architecture.md)
+- [Harness trade-offs, selected patterns, provider and app portability](https://github.com/minwoo19930301/decant/blob/main/docs/lineage-and-portability.md)
+- [Korean harness landscape](https://github.com/minwoo19930301/decant/blob/main/docs/korea-landscape.md)
+- [Global harness landscape](https://github.com/minwoo19930301/decant/blob/main/docs/global-landscape.md)
+- [Top global repositories and distilled patterns](https://github.com/minwoo19930301/decant/blob/main/docs/global-top-repos.md)
+- [Conditional advisor evidence and routing decision](https://github.com/minwoo19930301/decant/blob/main/docs/conditional-advisor-routing.md)
+- [Clean-room prior art ledger](https://github.com/minwoo19930301/decant/blob/main/docs/prior-art.md)
+- [30/60/90 development and promotion playbook](https://github.com/minwoo19930301/decant/blob/main/docs/growth-playbook.md)
+- [Relay10 v0.1.1 historical launch report](https://github.com/minwoo19930301/decant/blob/main/docs/launch-report.html)
 
 The latest research snapshot is dated 2026-07-14. Stars and project status change;
 follow the linked primary sources before making adoption or licensing choices.
@@ -362,12 +397,12 @@ follow the linked primary sources before making adoption or licensing choices.
 Use the repository issue forms for reproducible bugs, bounded use cases, and
 Skill proposals. Each proposal asks for observable acceptance evidence and
 clean-room provenance so the core does not grow from feature count alone. See
-[CONTRIBUTING.md](https://github.com/minwoo19930301/rein/blob/main/CONTRIBUTING.md)
+[CONTRIBUTING.md](https://github.com/minwoo19930301/decant/blob/main/CONTRIBUTING.md)
 for the development and review gates.
 
 ## License
 
-Rein (formerly Relay10) is MIT licensed and was implemented as a
+Decant (formerly Relay10) is MIT licensed and was implemented as a
 clean-room wrapper with zero third-party npm runtime dependencies. No source
 code from the compared harnesses is included.
 
@@ -378,7 +413,7 @@ projects it keeps on-demand skills, read-only plan roles, checkpoint and success
 gates, architect/editor separation, stateless transcripts, provider/worker
 ports, and independent review. It excludes swarms, nested completion loops,
 always-on daemons, databases, vector memory, schedulers, native TUI/GUI stacks,
-global injection, and telemetry from the core. Rein's
+global injection, and telemetry from the core. Decant's
 risk/verifiability/reversibility router and Effort Governor, separation of
 correctness from clarity, hash-bound frozen replay, and Reader-10 gate are its
 own additions.

@@ -30,27 +30,28 @@ import {
   writeJson,
 } from './utils.mjs';
 
-export const HELP = `Rein — keep a coding-agent run on a short rein
+export const HELP = `Decant — pour off what coding-agent harnesses do well, leave the sediment
 Explicit scope. Risk-aware effort. Inspectable evidence. Separate verdicts.
-Routing + invocation ceiling. Formerly Relay10 / DisciplinedRun.
+Routing + invocation ceiling + a pluggable backend. Formerly Relay10.
 
 Usage:
-  rein init [--force]
-  rein doctor [--json]
-  rein route <task> [--json]
-  rein run <task> [--dry-run] [--live-readers] [--budget-calls N] [--allow-verification-commands]
-  rein inspect [run-id] [--json]
-  rein report [run-id] [--output file]
-  rein replay [run-id] --frozen [--output file]
+  decant init [--force]
+  decant doctor [--json]
+  decant route <task> [--json]
+  decant run <task> [--dry-run] [--live-readers] [--budget-calls N] [--allow-verification-commands]
+  decant inspect [run-id] [--json]
+  decant report [run-id] [--output file]
+  decant replay [run-id] --frozen [--output file]
 
 Safety:
-  Config cannot replace the Codex executable or model-catalog command.
+  The provider set is fixed in code; config selects one but cannot name a binary.
   Configured verification commands run only with --allow-verification-commands.
   report writes report.regenerated.html by default and never replaces report.html.
   replay --frozen verifies artifact hashes and never changes the frozen run.
 
-Model stages run through the Codex CLI only. Reports are written in Korean.
-Run artifacts: .rein/runs/<run-id>/
+Backend: config "provider" selects codex or kiro. Run doctor to see which one is
+active and what it can enforce. Reports are written in Korean.
+Run artifacts: .decant/runs/<run-id>/
 `;
 
 export const RUN_ID_PATTERN = /^\d{8}T\d{9}Z-[a-z0-9]{8}$/i;
@@ -63,7 +64,7 @@ export function formatCliError(error) {
     && (syscall.startsWith('spawn ') || message.startsWith('spawn '));
   if (missingExecutable) {
     const command = error.path || error.cmd || 'executable';
-    return `${command} not found on PATH. Rein model stages require an authenticated Codex CLI (install Codex, then re-run rein doctor).`;
+    return `${command} not found on PATH. Decant model stages require an authenticated Codex CLI (install Codex, then re-run decant doctor).`;
   }
   return message;
 }
@@ -299,14 +300,14 @@ function aliasesProtectedFile(candidate, protectedFile) {
 }
 
 export async function resolveRunDir(cwd, candidate) {
-  const runsDir = path.resolve(cwd, '.rein', 'runs');
+  const runsDir = path.resolve(cwd, '.decant', 'runs');
   const id = candidate ?? await latestRun(runsDir);
-  if (!id) throw new Error('No Rein run found');
+  if (!id) throw new Error('No Decant run found');
   if (!RUN_ID_PATTERN.test(id)) throw new Error(`Invalid run id: ${id}`);
 
   const runDir = path.resolve(runsDir, id);
   if (!pathIsWithin(runsDir, runDir) || path.dirname(runDir) !== runsDir) {
-    throw new Error(`Run path escapes the Rein runs directory: ${id}`);
+    throw new Error(`Run path escapes the Decant runs directory: ${id}`);
   }
   if (!(await exists(runDir))) throw new Error(`Run not found: ${id}`);
 
@@ -317,7 +318,7 @@ export async function resolveRunDir(cwd, candidate) {
   ]);
   if (!selectedStat.isDirectory()) throw new Error(`Run path is not a directory: ${id}`);
   if (selectedRun !== path.join(runsDirectory, id)) {
-    throw new Error(`Run path escapes the Rein runs directory: ${id}`);
+    throw new Error(`Run path escapes the Decant runs directory: ${id}`);
   }
   return runDir;
 }
@@ -558,7 +559,7 @@ if (isMainModule()) {
   main().then((code) => {
     process.exitCode = code;
   }).catch((error) => {
-    process.stderr.write(`rein: ${formatCliError(error)}\n`);
+    process.stderr.write(`decant: ${formatCliError(error)}\n`);
     process.exitCode = 1;
   });
 }

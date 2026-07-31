@@ -1,0 +1,14 @@
+{
+  "name": "decant",
+  "displayName": "Decant",
+  "version": "0.2.0",
+  "description": "Eight small, on-demand Decant skills for evidence-led repository work.",
+  "author": {
+    "name": "minwoo19930301",
+    "url": "https://github.com/minwoo19930301"
+  },
+  "homepage": "https://github.com/minwoo19930301/decant#decant-skill-pack",
+  "repository": "https://github.com/minwoo19930301/decant",
+  "license": "MIT",
+  "keywords": ["claude-code", "agent-skills", "model-routing", "release-evidence"]
+}

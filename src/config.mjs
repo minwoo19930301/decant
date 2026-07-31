@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { DEFAULT_PROVIDER, PROVIDER_IDS } from "./providers/index.mjs";
 
-export const CONFIG_FILENAME = "rein.config.json";
+export const CONFIG_FILENAME = "decant.config.json";
 
 export const DEFAULT_CONFIG = deepFreeze({
   version: 1,
@@ -82,7 +82,7 @@ function isPlainObject(value) {
 }
 
 function configError(location, message, ErrorType = TypeError) {
-  throw new ErrorType(`Invalid Rein config at ${location}: ${message}`);
+  throw new ErrorType(`Invalid Decant config at ${location}: ${message}`);
 }
 
 function assertObject(value, location) {

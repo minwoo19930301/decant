@@ -1,6 +1,6 @@
-# Contributing to Rein
+# Contributing to Decant
 
-Rein stays small by accepting evidence-backed changes rather than feature
+Decant stays small by accepting evidence-backed changes rather than feature
 count. Before opening a pull request, describe the user problem, the current
 failure or limitation, and the observable acceptance condition.
 
@@ -31,7 +31,7 @@ clean-clone fixtures cannot be discovered as duplicate tests.
 
 ## Skill and Plugin contributions
 
-Rein's default pack is intentionally limited. A new Skill must show that an
+Decant's default pack is intentionally limited. A new Skill must show that an
 existing Skill cannot own the job and must include:
 
 - one primary job and explicit non-trigger boundary;

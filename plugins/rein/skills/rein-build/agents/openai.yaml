@@ -1,4 +1,0 @@
-interface:
-  display_name: "Rein Build"
-  short_description: "Implement an authorized change in small slices"
-  default_prompt: "Use $rein-build to implement this approved change and show verification evidence."

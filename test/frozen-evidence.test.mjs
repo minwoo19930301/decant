@@ -40,9 +40,9 @@ test('--freeze alone is refused; it needs the explicit environment override', ()
     assert.throws(
       () => evidenceTarget(ROOT, relativePath, {
         argv: ['node', 'script', '--freeze'],
-        env: { REIN_ALLOW_FROZEN_OVERWRITE: 'true' },
+        env: { DECANT_ALLOW_FROZEN_OVERWRITE: 'true' },
       }),
-      /REIN_ALLOW_FROZEN_OVERWRITE=1/,
+      /DECANT_ALLOW_FROZEN_OVERWRITE=1/,
       `${relativePath} must require exactly "1"`,
     );
   }
@@ -51,7 +51,7 @@ test('--freeze alone is refused; it needs the explicit environment override', ()
 test('--freeze with the override resolves to the archive and says so', () => {
   const result = evidenceTarget(ROOT, 'docs/launch-report.html', {
     argv: ['node', 'script', '--freeze'],
-    env: { REIN_ALLOW_FROZEN_OVERWRITE: '1' },
+    env: { DECANT_ALLOW_FROZEN_OVERWRITE: '1' },
   });
   assert.equal(result.frozen, true);
   assert.equal(result.target, path.join(ROOT, 'docs', 'launch-report.html'));
@@ -78,7 +78,7 @@ test('the released reader log is still bound to the released report bytes', asyn
 // not hypotheticals.
 
 test('a symlink at the destination cannot redirect the write', async (t) => {
-  const sandbox = await mkdtemp(path.join(tmpdir(), 'rein-evidence-'));
+  const sandbox = await mkdtemp(path.join(tmpdir(), 'decant-evidence-'));
   t.after(() => rm(sandbox, { recursive: true, force: true }));
   const archive = path.join(sandbox, 'docs', 'launch-report.html');
   await mkdir(path.join(sandbox, 'docs'), { recursive: true });
@@ -95,7 +95,7 @@ test('a symlink at the destination cannot redirect the write', async (t) => {
 });
 
 test('a symlinked outputs directory cannot redirect the write', async (t) => {
-  const sandbox = await mkdtemp(path.join(tmpdir(), 'rein-evidence-'));
+  const sandbox = await mkdtemp(path.join(tmpdir(), 'decant-evidence-'));
   t.after(() => rm(sandbox, { recursive: true, force: true }));
   const archive = path.join(sandbox, 'docs', 'launch-verification.json');
   await mkdir(path.join(sandbox, 'docs'), { recursive: true });
@@ -111,7 +111,7 @@ test('a symlinked outputs directory cannot redirect the write', async (t) => {
 });
 
 test('an ordinary write lands in outputs and leaves the archive alone', async (t) => {
-  const sandbox = await mkdtemp(path.join(tmpdir(), 'rein-evidence-'));
+  const sandbox = await mkdtemp(path.join(tmpdir(), 'decant-evidence-'));
   t.after(() => rm(sandbox, { recursive: true, force: true }));
   const archive = path.join(sandbox, 'docs', 'launch-report.html');
   await mkdir(path.join(sandbox, 'docs'), { recursive: true });
@@ -124,7 +124,7 @@ test('an ordinary write lands in outputs and leaves the archive alone', async (t
 });
 
 test('a hardlink to the archive cannot be written through', async (t) => {
-  const sandbox = await mkdtemp(path.join(tmpdir(), 'rein-evidence-'));
+  const sandbox = await mkdtemp(path.join(tmpdir(), 'decant-evidence-'));
   t.after(() => rm(sandbox, { recursive: true, force: true }));
   const archive = path.join(sandbox, 'docs', 'launch-report.html');
   await mkdir(path.join(sandbox, 'docs'), { recursive: true });
@@ -143,7 +143,7 @@ test('a hardlink to the archive cannot be written through', async (t) => {
 });
 
 test('a write that resolves onto a different archive file is refused by inode', async (t) => {
-  const sandbox = await mkdtemp(path.join(tmpdir(), 'rein-evidence-'));
+  const sandbox = await mkdtemp(path.join(tmpdir(), 'decant-evidence-'));
   t.after(() => rm(sandbox, { recursive: true, force: true }));
   await mkdir(path.join(sandbox, 'docs'), { recursive: true });
   const report = path.join(sandbox, 'docs', 'launch-report.html');
@@ -167,7 +167,7 @@ test('a write that resolves onto a different archive file is refused by inode', 
 });
 
 test('flipping outputs into a symlink mid-write never reaches the archive', async (t) => {
-  const sandbox = await mkdtemp(path.join(tmpdir(), 'rein-evidence-'));
+  const sandbox = await mkdtemp(path.join(tmpdir(), 'decant-evidence-'));
   t.after(() => rm(sandbox, { recursive: true, force: true }));
   const archive = path.join(sandbox, 'docs', 'launch-report.html');
   await mkdir(path.join(sandbox, 'docs'), { recursive: true });
@@ -202,7 +202,7 @@ test('flipping outputs into a symlink mid-write never reaches the archive', asyn
 });
 
 test('legacy outputs sidecars are guarded too', async (t) => {
-  const sandbox = await mkdtemp(path.join(tmpdir(), 'rein-evidence-'));
+  const sandbox = await mkdtemp(path.join(tmpdir(), 'decant-evidence-'));
   t.after(() => rm(sandbox, { recursive: true, force: true }));
   const archive = path.join(sandbox, 'docs', 'launch-report.html');
   await mkdir(path.join(sandbox, 'docs'), { recursive: true });
@@ -235,7 +235,7 @@ test('legacy outputs sidecars are guarded too', async (t) => {
 });
 
 test('a sidecar name cannot escape outputs/', async (t) => {
-  const sandbox = await mkdtemp(path.join(tmpdir(), 'rein-evidence-'));
+  const sandbox = await mkdtemp(path.join(tmpdir(), 'decant-evidence-'));
   t.after(() => rm(sandbox, { recursive: true, force: true }));
   await mkdir(path.join(sandbox, 'docs'), { recursive: true });
   await writeFile(path.join(sandbox, 'docs', 'launch-report.html'), 'RELEASED', 'utf8');
@@ -246,7 +246,7 @@ test('a sidecar name cannot escape outputs/', async (t) => {
   assert.equal(await readFile(path.join(sandbox, 'docs', 'launch-report.html'), 'utf8'), 'RELEASED');
 });
 
-test('--freeze with the override may still write its own artifact', async (t) => {  const sandbox = await mkdtemp(path.join(tmpdir(), 'rein-evidence-'));
+test('--freeze with the override may still write its own artifact', async (t) => {  const sandbox = await mkdtemp(path.join(tmpdir(), 'decant-evidence-'));
   t.after(() => rm(sandbox, { recursive: true, force: true }));
   const archive = path.join(sandbox, 'docs', 'launch-report.html');
   await mkdir(path.join(sandbox, 'docs'), { recursive: true });
@@ -254,7 +254,7 @@ test('--freeze with the override may still write its own artifact', async (t) =>
 
   const destination = evidenceTarget(sandbox, 'docs/launch-report.html', {
     argv: ['node', 'script', '--freeze'],
-    env: { REIN_ALLOW_FROZEN_OVERWRITE: '1' },
+    env: { DECANT_ALLOW_FROZEN_OVERWRITE: '1' },
   });
   await writeEvidence(sandbox, destination, 'DELIBERATELY REPLACED');
   assert.equal(await readFile(archive, 'utf8'), 'DELIBERATELY REPLACED');

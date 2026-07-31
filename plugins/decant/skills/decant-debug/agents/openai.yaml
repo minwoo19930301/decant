@@ -1,0 +1,4 @@
+interface:
+  display_name: "Decant Debug"
+  short_description: "Find a root cause before proposing a repair"
+  default_prompt: "Use $decant-debug to reproduce and isolate this failure before editing anything."

@@ -1,10 +1,10 @@
 {
-  "name": "rein-cli",
+  "name": "decant",
   "version": "0.2.0",
-  "description": "Rein — keep a coding-agent run on a short rein: risk-aware routing, an invocation ceiling, inspectable file evidence, and hash-frozen replay. Codex CLI only. (formerly Relay10 / DisciplinedRun)",
+  "description": "Decant — pour off what several coding-agent harnesses do well, leave the sediment: risk-aware routing, an invocation ceiling, inspectable file evidence, hash-frozen replay, and a pluggable model backend.",
   "type": "module",
   "bin": {
-    "rein": "./src/cli.mjs"
+    "decant": "./src/cli.mjs"
   },
   "scripts": {
     "check": "npm run test && npm run lint && npm run validate:skills",
@@ -21,28 +21,28 @@
     "node": ">=20"
   },
   "keywords": [
-    "rein",
-    "relay10",
+    "decant",
+    "coding-agent",
+    "agent-harness",
     "codex",
     "claude-code",
-    "grok",
+    "kiro",
     "agent-skills",
-    "agent-harness",
     "model-routing",
     "invocation-ceiling",
     "evidence-led",
     "frozen-replay",
-    "clarity-eval"
+    "provider-agnostic"
   ],
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/minwoo19930301/rein.git"
+    "url": "git+https://github.com/minwoo19930301/decant.git"
   },
   "bugs": {
-    "url": "https://github.com/minwoo19930301/rein/issues"
+    "url": "https://github.com/minwoo19930301/decant/issues"
   },
-  "homepage": "https://github.com/minwoo19930301/rein#readme",
+  "homepage": "https://github.com/minwoo19930301/decant#readme",
   "files": [
     "src",
     "schema",
@@ -50,7 +50,7 @@
     "test",
     "scripts",
     "docs",
-    "plugins/rein",
+    "plugins/decant",
     ".claude-plugin",
     "README.md",
     "LICENSE",

@@ -4,13 +4,13 @@ Evidence snapshot: **2026-07-17T17:30:00+09:00**
 
 ## Decision
 
-Rein adopts a small set of narrow findings from the newly
+Decant adopts a small set of narrow findings from the newly
 open-sourced [xai-org/grok-build](https://github.com/xai-org/grok-build)
 (Rust; first-party code Apache-2.0): two documentation corrections that keep existing host
 claims exactly matched to source, one distilled lockfile-reclaim behavior,
 and one pinned design note that constrains a future Grok stage-executor
 adapter. It does not import Grok Build code, add a dependency, or change
-what Rein claims to support.
+what Decant claims to support.
 
 SpaceXAI's [2026-07-15 announcement](https://x.ai/news/grok-build-open-source)
 makes the Grok Build CLI/TUI source public. A separate
@@ -33,9 +33,9 @@ Paths are relative to `crates/codegen/`.
 | Client retention-setting fallback | [`xai-grok-pager/src/settings/defs.rs`](https://github.com/xai-org/grok-build/blob/c68e39f60462f28d9be5e683d9cbe2c57b1a5027/crates/codegen/xai-grok-pager/src/settings/defs.rs#L1107-L1132) | The client setting metadata contains an `opt-in` fallback for "Coding data sharing" and says the value is persisted in auth metadata, not `config.toml`; effective account or server policy can override that fallback | High only for the pinned client fallback; effective server behavior was not independently verified. |
 | Headless output channel | [`xai-grok-pager/src/headless.rs`](https://github.com/xai-org/grok-build/blob/c68e39f60462f28d9be5e683d9cbe2c57b1a5027/crates/codegen/xai-grok-pager/src/headless.rs#L459-L465), [`docs/user-guide/14-headless-mode.md`](https://github.com/xai-org/grok-build/blob/c68e39f60462f28d9be5e683d9cbe2c57b1a5027/crates/codegen/xai-grok-pager/docs/user-guide/14-headless-mode.md#L9-L41) | Headless mode (`grok -p`) emits one terminal JSON blob on stdout under `--output-format json`; there is no `--output-last-message`-style file side channel, and prompts are selected through CLI arguments (`-p`, `--prompt-json`, or `--prompt-file`), not stdin | High for the inspected paths. |
 | Sandbox failure behavior | [`xai-grok-sandbox/src/lib.rs`](https://github.com/xai-org/grok-build/blob/c68e39f60462f28d9be5e683d9cbe2c57b1a5027/crates/codegen/xai-grok-sandbox/src/lib.rs#L144-L193) | Sandbox application is **fail-open**: unsupported platform or apply error logs a warning and continues without a sandbox; a stub applies when the `enforce` feature is compiled out | High; both fallback paths read directly. |
-| Stale-lock source pattern | [`xai-grok-memory/src/dream_lock.rs`](https://github.com/xai-org/grok-build/blob/c68e39f60462f28d9be5e683d9cbe2c57b1a5027/crates/codegen/xai-grok-memory/src/dream_lock.rs#L53-L149) | The source combines PID-liveness checks with a source-specific staleness policy and write-then-verify coordination; Rein distills only the provably-dead-holder signal, not age-based eviction | High for the pinned source behavior; the separate implementation PR defines a stricter local policy. |
+| Stale-lock source pattern | [`xai-grok-memory/src/dream_lock.rs`](https://github.com/xai-org/grok-build/blob/c68e39f60462f28d9be5e683d9cbe2c57b1a5027/crates/codegen/xai-grok-memory/src/dream_lock.rs#L53-L149) | The source combines PID-liveness checks with a source-specific staleness policy and write-then-verify coordination; Decant distills only the provably-dead-holder signal, not age-based eviction | High for the pinned source behavior; the separate implementation PR defines a stricter local policy. |
 
-## What Rein adopts now
+## What Decant adopts now
 
 1. **Doc precision on Grok skill discovery**
    ([host-surface-verification.md](host-surface-verification.md)): the
@@ -45,7 +45,7 @@ Paths are relative to `crates/codegen/`.
 2. **Data-retention caveat in the provider table** ([README](../README.md)):
    users who host the skill pack in Grok Build are told that the pinned client
    contains an `opt-in` fallback while effective account or server policy may
-   override it. Rein never launches Grok and cannot see or change
+   override it. Decant never launches Grok and cannot see or change
    that setting.
 3. **Stale-lock reclaim for `workspace.lock`** (separate PR): on `EEXIST`,
    read the recorded `{runId, pid, createdAt}` and reclaim only when the holder
@@ -77,7 +77,7 @@ Paths are relative to `crates/codegen/`.
 - the full `GrokExecutorAdapter` implementation (two structural contract
   changes; premature before v0.3);
 - ACP client integration for model metadata;
-- vendoring any sandbox enforcement (Landlock/Seatbelt) — Rein
+- vendoring any sandbox enforcement (Landlock/Seatbelt) — Decant
   never runs privileged enforcement code;
 - per-file hunk attribution actors, worktree pooling, embeddings memory,
   background consolidation loops, codebase-graph indexing — each is a
@@ -97,7 +97,7 @@ Paths are relative to `crates/codegen/`.
 Grok Build's first-party code is Apache-2.0; vendored and third-party material
 retains its own licenses, as its
 [repository README](https://github.com/xai-org/grok-build/blob/c68e39f60462f28d9be5e683d9cbe2c57b1a5027/README.md#license)
-explains. Rein imports no Grok Build source code or assets. This
+explains. Decant imports no Grok Build source code or assets. This
 document quotes short source phrases and links their pinned locations for
 provenance; it makes no conclusion about attribution obligations.
 

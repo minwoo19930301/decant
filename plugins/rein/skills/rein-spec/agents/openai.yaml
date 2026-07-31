@@ -1,4 +1,0 @@
-interface:
-  display_name: "Rein Spec"
-  short_description: "Clarify blocking decisions and confirm a task contract"
-  default_prompt: "Use $rein-spec to inspect repo facts, ask only blocking decisions, and confirm the smallest verifiable task contract."

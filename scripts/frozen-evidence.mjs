@@ -14,7 +14,7 @@ import path from 'node:path';
  *
  * Every generator therefore writes to the gitignored `outputs/` directory by
  * default. Overwriting the archive requires BOTH `--freeze` on the command line
- * and `REIN_ALLOW_FROZEN_OVERWRITE=1` in the environment, so a stray flag in a
+ * and `DECANT_ALLOW_FROZEN_OVERWRITE=1` in the environment, so a stray flag in a
  * script or shell history cannot destroy the evidence on its own.
  */
 export const FROZEN_EVIDENCE = Object.freeze([
@@ -24,7 +24,7 @@ export const FROZEN_EVIDENCE = Object.freeze([
   'docs/launch-reader-deterministic.json',
 ]);
 
-const OVERRIDE_ENV = 'REIN_ALLOW_FROZEN_OVERWRITE';
+const OVERRIDE_ENV = 'DECANT_ALLOW_FROZEN_OVERWRITE';
 
 /**
  * Resolve where a generator should write one frozen-evidence artifact.

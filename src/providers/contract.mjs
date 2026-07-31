@@ -20,8 +20,8 @@
  */
 
 /** Sentinels used when a provider has no native "final message" channel. */
-export const OUTPUT_BEGIN = '<<<REIN_OUTPUT_BEGIN>>>';
-export const OUTPUT_END = '<<<REIN_OUTPUT_END>>>';
+export const OUTPUT_BEGIN = '<<<DECANT_OUTPUT_BEGIN>>>';
+export const OUTPUT_END = '<<<DECANT_OUTPUT_END>>>';
 
 /**
  * Wrap a stage prompt so the final answer can be recovered from interleaved
@@ -67,7 +67,7 @@ export function extractOutput(transcript) {
   const matches = [...String(transcript).matchAll(SENTINEL_PATTERN)];
   if (matches.length === 0) {
     throw new Error(
-      'provider output did not contain a Rein sentinel block, so the stage answer '
+      'provider output did not contain a Decant sentinel block, so the stage answer '
       + 'could not be separated from the transcript',
     );
   }

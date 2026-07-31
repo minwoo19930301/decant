@@ -100,7 +100,7 @@ test('spawnCapture caps stdout and stderr independently at 2 MiB', async () => {
 test('spawnCapture kills the full POSIX process group after timeout', {
   skip: process.platform === 'win32',
 }, async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), 'rein-process-group-'));
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'decant-process-group-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const marker = path.join(directory, 'descendant-survived.txt');
   const descendant = `

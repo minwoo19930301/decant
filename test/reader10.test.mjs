@@ -125,7 +125,7 @@ test('payload audit passes aligned content but does not claim semantic proof', (
   const result = evaluateReader10Payload({
     task: 'Relay10 CLI 구현 결과를 조사하고 검증해줘',
     summary: 'Relay10 CLI 구현 결과와 테스트 상태를 조사해 정리했습니다. 오류가 나면 검증 로그를 확인하세요.',
-    evidence: ['https://github.com/example/rein'],
+    evidence: ['https://github.com/example/decant'],
     verification: ['33개 테스트 통과'],
     risks: ['배포 전 사람이 변경 내용을 확인해야 합니다.'],
     nextSteps: ['npm test를 실행하고 결과를 확인하세요.'],

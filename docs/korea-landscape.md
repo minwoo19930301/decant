@@ -160,7 +160,7 @@ OMX (Codex host) ───────┘
 
 ## 조사 한계
 
-Rein이 각 프로젝트에서 무엇을 채택하고 제외했는지, 현재 Codex CLI·
+Decant이 각 프로젝트에서 무엇을 채택하고 제외했는지, 현재 Codex CLI·
 Grok·Claude·Gemini·Codex 앱·ChatGPT 앱을 어디까지 지원하는지는
 [`lineage-and-portability.md`](./lineage-and-portability.md)의 명시적 선택표와
 지원표에 정리했다. 이 문서의 사실 조사는 그 선택표의 근거이고, 선택표의

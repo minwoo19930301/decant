@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/minwoo19930301/rein/raw/main/schema/config.schema.json",
-  "title": "Rein configuration",
+  "$id": "https://github.com/minwoo19930301/decant/raw/main/schema/config.schema.json",
+  "title": "Decant configuration",
   "type": "object",
   "additionalProperties": false,
   "required": ["version"],

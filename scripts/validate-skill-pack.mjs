@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const SCRIPT_FILE = fileURLToPath(import.meta.url);
 const REPOSITORY_ROOT = fileURLToPath(new URL('..', import.meta.url));
-const DEFAULT_PLUGIN_ROOT = path.join(REPOSITORY_ROOT, 'plugins', 'rein');
+const DEFAULT_PLUGIN_ROOT = path.join(REPOSITORY_ROOT, 'plugins', 'decant');
 const TEXT_EXTENSIONS = new Set([
   '.json',
   '.md',
@@ -89,7 +89,7 @@ function parseYamlScalar(rawValue, line) {
   return value;
 }
 
-// Rein metadata deliberately uses a strict YAML subset: two-space-indented
+// Decant metadata deliberately uses a strict YAML subset: two-space-indented
 // mappings and one-line string scalars. Rejecting everything else keeps the
 // dependency-free parser fail-closed instead of pretending to implement YAML.
 export function parseYamlScalars(source) {
@@ -562,7 +562,7 @@ function helpText() {
   return [
     'Usage: node scripts/validate-skill-pack.mjs [plugin-path] [--json]',
     '',
-    'Validate the Rein Codex and Claude Code plugin manifests and every bundled skill.',
+    'Validate the Decant Codex and Claude Code plugin manifests and every bundled skill.',
     '',
     'Options:',
     '  --json  Print the machine-readable result.',
