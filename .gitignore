@@ -1,7 +1,7 @@
 node_modules/
 .rein/
-# scripts/audit-launch-report.mjs is frozen v0.1.1 evidence tooling and still
-# writes its scratch output to the legacy path.
+# Pre-0.2.0 working directories. Nothing in the current tree writes to these;
+# they are ignored so a checkout that predates the Rein rename stays clean.
 .relay10/
 /rein.config.json
 /relay10.config.json

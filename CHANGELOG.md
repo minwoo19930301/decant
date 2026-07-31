@@ -44,7 +44,7 @@
   unmeasured token or currency savings.
 - Document Claude Code and Grok Build as **Skill hosts** (not stage executors),
   with dated evidence in `docs/host-surface-verification.md`.
-- Make `r10 doctor` report a structured FAIL with PATH guidance when the Codex
+- Make `rein doctor` report a structured FAIL with PATH guidance when the Codex
   CLI is missing, instead of crashing on `spawn codex ENOENT`.
 - Format top-level CLI errors for missing executables with the same guidance.
 
