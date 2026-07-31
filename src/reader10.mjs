@@ -11,7 +11,25 @@ const DEFAULT_JARGON = Object.freeze([
   '프롬프트',
 ]);
 
-const VAGUE_REFERENCES = /(?:이것|그것|저것|해당 것|위와 같이|아래와 같이|적절히|알아서|필요시|등을 처리)/g;
+const VAGUE_REFERENCES = /(?:이것|그것|저것|해당 것|위와 같이|아래와 같이|적절히|알아서|필요시|등을 처리|\bthis one\b|\bthat one\b|\bas above\b|\bas below\b|\bappropriately\b|\bas needed\b|\bhandle the rest\b)/gi;
+
+/**
+ * Cues the structural checks look for, in Korean and English.
+ *
+ * These used to be Korean-only, which quietly made the gate a Korean-language
+ * gate: an English report failed `hasSummary`, `hasPurpose`, and the rest no
+ * matter how well written it was. The checks are about whether a document says
+ * what it is for and what to do next, and that is not a property of one
+ * language, so both vocabularies are accepted.
+ */
+const CUES = Object.freeze({
+  summary: /요약|한눈에|핵심|결론|최종 결과|결과 요약|\bsummary\b|\bconclusion\b|\bat a glance\b|\btl;?dr\b|\bkey (?:results?|findings?|points?)\b|\boutcome\b/i,
+  purpose: /목적|요청|목표|위해|하려면|해야|이 문서|이 보고서|\bpurpose\b|\bgoal\b|\bobjective\b|\brequest(?:ed)?\b|\bin order to\b|\bthis (?:document|report)\b/i,
+  action: /다음|단계|실행|사용|해야|하세요|명령|조치|권장|확인|\bnext steps?\b|\brun\b|\busage?\b|\bcommand\b|\brecommend(?:ed|ation)?\b|\byou should\b|\bverify\b/i,
+  prerequisite: /전제|준비|필요|요구|먼저|조건|환경|\bprerequisites?\b|\brequire[sd]?\b|\bbefore you\b|\bassumes?\b|\benvironment\b|\bsetup\b/i,
+  failure: /실패|오류|예외|문제|주의|경고|대안|복구|\bfail(?:ed|ure|s)?\b|\berror\b|\bexception\b|\bwarning\b|\bcaution\b|\bfallback\b|\brecover(?:y)?\b|\brollback\b/i,
+  evidence: /근거|출처|검증|증거|인용|참고|https?:\/\/|\bevidence\b|\bsource\b|\bverified\b|\bcitation\b|\bsee also\b|\breference\b/i,
+});
 const BLOCK_END = /<\/(?:address|article|aside|blockquote|div|dl|fieldset|figcaption|figure|footer|form|h[1-6]|header|li|main|nav|ol|p|pre|section|table|tr|ul)>/gi;
 
 function decodeEntities(value) {
@@ -171,15 +189,18 @@ function buildContext(input, options) {
       hasTitle: isHtml ? /<title\b[^>]*>[^<\s][\s\S]*?<\/title>|<h1\b[^>]*>[^<\s][\s\S]*?<\/h1>/i.test(source) : /^\s*(?:#\s+)?\S.{2,}$/m.test(source),
       hasH1: !isHtml || /<h1\b[^>]*>[^<\s][\s\S]*?<\/h1>/i.test(source),
       hasMain: !isHtml || /<main\b/i.test(source),
-      hasKoreanLang: !isHtml || /<html\b[^>]*\blang\s*=\s*(['"])(?:ko|ko-KR)\1/i.test(source),
+      // Any declared language passes. This used to require lang="ko", which meant
+      // an English report could not clear the project's own clarity gate — a bug,
+      // not a policy.
+      hasLangDeclaration: !isHtml || /<html\b[^>]*\blang\s*=\s*(['"])[a-z]{2}(?:-[A-Za-z0-9]+)*\1/i.test(source),
       hasViewport: !isHtml || /<meta\b[^>]*\bname\s*=\s*(['"])viewport\1/i.test(source),
-      hasSummary: /요약|한눈에|핵심|결론|최종 결과|결과 요약/.test(text),
-      hasEarlySummary: /요약|한눈에|핵심|결론|최종 결과|결과 요약/.test(firstThird),
-      hasPurpose: /목적|요청|목표|위해|하려면|해야|이 문서|이 보고서/.test(text),
-      hasAction: /다음|단계|실행|사용|해야|하세요|명령|조치|권장|확인/.test(text),
-      hasPrerequisite: /전제|준비|필요|요구|먼저|조건|환경/.test(text),
-      hasFailureGuidance: /실패|오류|예외|문제|주의|경고|대안|복구/.test(text),
-      hasEvidence: /근거|출처|검증|증거|인용|참고|https?:\/\//.test(text),
+      hasSummary: CUES.summary.test(text),
+      hasEarlySummary: CUES.summary.test(firstThird),
+      hasPurpose: CUES.purpose.test(text),
+      hasAction: CUES.action.test(text),
+      hasPrerequisite: CUES.prerequisite.test(text),
+      hasFailureGuidance: CUES.failure.test(text),
+      hasEvidence: CUES.evidence.test(text),
       hasHeadingJump: hasHeadingJump(headings),
       hasWideFixedLayout: /(?:width|min-width)\s*:\s*(?:1[3-9]\d{2}|[2-9]\d{3,})px/i.test(source),
     },
@@ -222,7 +243,7 @@ export const READER10_PERSONAS = Object.freeze([
     check('fixed-width', '고정 대형 폭을 강제하지 않는다', !ctx.flags.hasWideFixedLayout, '1300px 이상의 고정 폭을 제거하세요.'),
   ]),
   definePersona('screen-reader', '스크린리더 독자', '문서 의미 구조와 대체 텍스트에 의존하는 독자', (ctx) => [
-    check('lang', '문서 언어를 선언한다', ctx.flags.hasKoreanLang, 'HTML 루트에 lang="ko"를 추가하세요.'),
+    check('lang', '문서 언어를 선언한다', ctx.flags.hasLangDeclaration, 'HTML 루트에 lang 속성을 추가하세요. 예: lang="en" 또는 lang="ko".'),
     check('landmark', 'main 랜드마크와 h1이 있다', ctx.flags.hasMain && ctx.flags.hasH1, 'main 요소와 하나의 h1을 제공하세요.'),
     check('alt', '모든 이미지에 alt가 있다', ctx.images.missingAlt === 0, `alt 없는 이미지 수: ${ctx.images.missingAlt}`, 'critical'),
     check('table-header', '표에 머리글이 있다', ctx.tables.withoutHeaders === 0, `머리글 없는 표 수: ${ctx.tables.withoutHeaders}`),
