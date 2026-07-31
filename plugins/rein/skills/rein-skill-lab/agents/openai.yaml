@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rein Skill Lab"
+  short_description: "Test and tune a focused skill pack"
+  default_prompt: "Use $rein-skill-lab to validate this skill against triggers and a no-skill baseline."

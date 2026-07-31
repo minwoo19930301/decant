@@ -360,7 +360,7 @@ function deriveNextSteps(reviewer, verification) {
     : [];
   const steps = [...failed];
   if (verification.status === 'unverified') {
-    steps.push('relay10.config.json에 구조화된 검증 명령을 추가하고 명시적으로 실행을 승인합니다.');
+    steps.push('rein.config.json에 구조화된 검증 명령을 추가하고 명시적으로 실행을 승인합니다.');
   } else if (verification.status === 'fail') {
     steps.push('verification.json의 실패 출력을 확인하고 수정한 뒤 다시 실행합니다.');
   }
@@ -393,7 +393,7 @@ function statusFromGates({ truth, verification, readers, renderAudit }) {
 
 function reportData(manifest, { summary, verification, readers, evidence, nextSteps }) {
   return {
-    title: 'DisciplinedRun 실행 보고서',
+    title: 'Rein 실행 보고서',
     task: manifest.task,
     summary,
     status: manifest.status,
@@ -723,7 +723,7 @@ async function acquireReclaimGuard({ lockFile, probePid, openFile }) {
     }
   }
 
-  throw new Error(`another mutating DisciplinedRun run is acquiring or reclaiming ${lockFile}`);
+  throw new Error(`another mutating Rein run is acquiring or reclaiming ${lockFile}`);
 }
 
 async function releaseReclaimGuard({ guardDir, entryName }) {
@@ -815,7 +815,7 @@ export async function acquireWorkspaceLock({
       return ownerToken;
     }
     if (current.status !== 'valid') {
-      throw new Error(`another mutating DisciplinedRun run holds ${lockFile} (owner record is invalid or unidentifiable)`);
+      throw new Error(`another mutating Rein run holds ${lockFile} (owner record is invalid or unidentifiable)`);
     }
 
     let holderState = 'unknown';
@@ -827,13 +827,13 @@ export async function acquireWorkspaceLock({
     }
     if (holderState !== 'dead') {
       throw new Error(
-        `another mutating DisciplinedRun run holds ${lockFile}`
+        `another mutating Rein run holds ${lockFile}`
         + ` (runId ${current.record.runId}, pid ${current.record.pid}, started ${current.record.createdAt}, state ${holderState})`,
       );
     }
 
     // Every acquisition path honors this guard, so this unlink/create pair has
-    // no unguarded gap for another DisciplinedRun process to enter. Re-read and
+    // no unguarded gap for another Rein process to enter. Re-read and
     // PID classification above happen only after the guard is held.
     await unlink(lockFile);
     await writeAndVerifyWorkspaceLock({ lockFile, record, openFile });
@@ -887,7 +887,7 @@ export async function runPipeline({
   const id = idFactory ? idFactory() : runId(new Date(clock()));
   if (!RUN_ID_PATTERN.test(id)) throw new Error(`invalid run id: ${id}`);
 
-  const stateDir = path.join(root, '.relay10');
+  const stateDir = path.join(root, '.rein');
   const runsDir = path.join(stateDir, 'runs');
   const runDir = path.join(runsDir, id);
   const manifestFile = path.join(runDir, 'run.json');

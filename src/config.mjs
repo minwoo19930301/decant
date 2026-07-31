@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-export const CONFIG_FILENAME = "relay10.config.json";
+export const CONFIG_FILENAME = "rein.config.json";
 
 export const DEFAULT_CONFIG = deepFreeze({
   version: 1,
@@ -78,7 +78,7 @@ function isPlainObject(value) {
 }
 
 function configError(location, message, ErrorType = TypeError) {
-  throw new ErrorType(`Invalid DisciplinedRun config at ${location}: ${message}`);
+  throw new ErrorType(`Invalid Rein config at ${location}: ${message}`);
 }
 
 function assertObject(value, location) {
@@ -330,7 +330,7 @@ export function expandEnvironment(value, {
 }
 
 function expandString(input, env, strict) {
-  const escaped = "\u0000relay10-dollar\u0000";
+  const escaped = "\u0000rein-dollar\u0000";
   const protectedInput = input.replaceAll("$$", escaped);
   const expanded = protectedInput.replace(
     /\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}/g,

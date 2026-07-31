@@ -39,7 +39,7 @@ test('buildRunPlan counts deterministic and live reader calls', () => {
 });
 
 test('runPipeline completes with injected model execution and writes a frozen report', async () => {
-  const cwd = await mkdtemp(path.join(os.tmpdir(), 'relay10-pipeline-'));
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'rein-pipeline-'));
   const route = routeTask(task, { quorum: 9 });
   const calls = [];
   const fakeCodex = async (options) => {
@@ -101,7 +101,7 @@ test('runPipeline completes with injected model execution and writes a frozen re
 });
 
 test('mutation without verification commands is WARN, never a verified pass', async () => {
-  const cwd = await mkdtemp(path.join(os.tmpdir(), 'relay10-unverified-'));
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'rein-unverified-'));
   const route = routeTask(task, { quorum: 9 });
   const fakeCodex = async ({ outputFile }) => {
     let output = '작은 CLI 구현 결과입니다. 다음 단계는 사람이 결과를 확인하는 것입니다. 오류가 생기면 실행 기록을 확인하세요.';
@@ -125,7 +125,7 @@ test('mutation without verification commands is WARN, never a verified pass', as
 });
 
 test('economy work invokes the advisor when scout records an unresolved question', async () => {
-  const cwd = await mkdtemp(path.join(os.tmpdir(), 'relay10-advisor-question-'));
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'rein-advisor-question-'));
   const route = routeTask(task, { quorum: 9 });
   const calls = [];
   const fakeCodex = async (options) => {
@@ -168,7 +168,7 @@ test('economy work invokes the advisor when scout records an unresolved question
 
 test('always and never advisor policies execute end to end with consistent budgets', async () => {
   async function execute(advisorMode) {
-    const cwd = await mkdtemp(path.join(os.tmpdir(), `relay10-advisor-${advisorMode}-`));
+    const cwd = await mkdtemp(path.join(os.tmpdir(), `rein-advisor-${advisorMode}-`));
     const config = structuredClone(DEFAULT_CONFIG);
     config.routing.advisorMode = advisorMode;
     const route = routeTask(task, { quorum: 9, advisorMode });
@@ -214,7 +214,7 @@ test('always and never advisor policies execute end to end with consistent budge
 });
 
 test('unresolved scout questions stop before mutation when advisor headroom is missing', async () => {
-  const cwd = await mkdtemp(path.join(os.tmpdir(), 'relay10-advisor-budget-'));
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'rein-advisor-budget-'));
   const route = routeTask(task, { quorum: 9 });
   const fixedRunId = '20260714T000000000Z-deadbeef';
   const fakeCodex = async ({ outputFile }) => {
@@ -240,7 +240,7 @@ test('unresolved scout questions stop before mutation when advisor headroom is m
     /invocation budget cannot fund the advisor and all mandatory stages/,
   );
 
-  const manifest = await readJson(path.join(cwd, '.relay10', 'runs', fixedRunId, 'run.json'));
+  const manifest = await readJson(path.join(cwd, '.rein', 'runs', fixedRunId, 'run.json'));
   assert.equal(manifest.status, 'error');
   assert.equal(manifest.calls.used, 1);
   assert.equal(manifest.routing.find((row) => row.stage === 'architect').decision, 'budget-blocked');
@@ -249,8 +249,8 @@ test('unresolved scout questions stop before mutation when advisor headroom is m
 });
 
 test('a run never removes a workspace lock that it did not acquire', async () => {
-  const cwd = await mkdtemp(path.join(os.tmpdir(), 'relay10-locked-'));
-  const stateDir = path.join(cwd, '.relay10');
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'rein-locked-'));
+  const stateDir = path.join(cwd, '.rein');
   const lockFile = path.join(stateDir, 'workspace.lock');
   await mkdir(stateDir, { recursive: true });
   await writeText(lockFile, 'other-run\n');
@@ -265,7 +265,7 @@ test('a run never removes a workspace lock that it did not acquire', async () =>
       route,
       runCodexImpl: async () => { throw new Error('must not execute'); },
     }),
-    /another mutating DisciplinedRun run holds/,
+    /another mutating Rein run holds/,
   );
   assert.equal(await readText(lockFile), 'other-run\n');
 });
@@ -281,7 +281,7 @@ async function assertMissing(file) {
 }
 
 test('acquireWorkspaceLock reclaims only a provably dead holder and records an owner token', async () => {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'dpr-lock-'));
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'rein-lock-'));
   const lockFile = path.join(dir, 'workspace.lock');
   const clock = () => '2026-07-17T10:00:00.000Z';
   await writeText(lockFile, `${JSON.stringify({ runId: 'old-run', pid: 12345, createdAt: '2026-07-17T09:59:00.000Z' })}\n`);
@@ -300,31 +300,31 @@ test('acquireWorkspaceLock reclaims only a provably dead holder and records an o
 });
 
 test('acquireWorkspaceLock refuses a fresh lock held by a live process', async () => {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'dpr-lock-'));
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'rein-lock-'));
   const lockFile = path.join(dir, 'workspace.lock');
   const clock = () => '2026-07-17T10:00:00.000Z';
   await writeText(lockFile, `${JSON.stringify({ runId: 'old-run', pid: 12345, createdAt: '2026-07-17T09:59:00.000Z' })}\n`);
   await assert.rejects(
     () => acquireWorkspaceLock({ lockFile, runId: 'new-run', clock, probePid: () => 'alive' }),
-    /another mutating DisciplinedRun run holds .*old-run.*12345/s,
+    /another mutating Rein run holds .*old-run.*12345/s,
   );
   assert.equal(JSON.parse(await readText(lockFile)).runId, 'old-run');
 });
 
 test('acquireWorkspaceLock never reclaims a live holder solely because the record is old', async () => {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'dpr-lock-'));
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'rein-lock-'));
   const lockFile = path.join(dir, 'workspace.lock');
   const clock = () => '2026-07-18T11:00:00.000Z';
   await writeText(lockFile, `${JSON.stringify({ runId: 'old-run', pid: 12345, createdAt: '2026-07-17T09:00:00.000Z' })}\n`);
   await assert.rejects(
     () => acquireWorkspaceLock({ lockFile, runId: 'new-run', clock, probePid: () => 'alive' }),
-    /another mutating DisciplinedRun run holds/,
+    /another mutating Rein run holds/,
   );
   assert.equal(JSON.parse(await readText(lockFile)).runId, 'old-run');
 });
 
 test('acquireWorkspaceLock fails closed for invalid, unknown, and unparsable holders', async () => {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'dpr-lock-'));
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'rein-lock-'));
   const lockFile = path.join(dir, 'workspace.lock');
   const clock = () => '2026-07-18T11:00:00.000Z';
 
@@ -336,13 +336,13 @@ test('acquireWorkspaceLock fails closed for invalid, unknown, and unparsable hol
       clock,
       probePid: () => { throw new Error('invalid PID must not be probed'); },
     }),
-    /another mutating DisciplinedRun run holds/,
+    /another mutating Rein run holds/,
   );
 
   await writeText(lockFile, `${JSON.stringify({ runId: 'unknown-pid', pid: 12345, createdAt: '2020-01-01T00:00:00.000Z' })}\n`);
   await assert.rejects(
     () => acquireWorkspaceLock({ lockFile, runId: 'new-run', clock, probePid: () => 'unknown' }),
-    /another mutating DisciplinedRun run holds/,
+    /another mutating Rein run holds/,
   );
 
   const permissionError = new Error('permission denied');
@@ -354,19 +354,19 @@ test('acquireWorkspaceLock fails closed for invalid, unknown, and unparsable hol
       clock,
       probePid: () => { throw permissionError; },
     }),
-    /another mutating DisciplinedRun run holds .*state unknown/s,
+    /another mutating Rein run holds .*state unknown/s,
   );
 
   await writeText(lockFile, 'not json\n');
   await assert.rejects(
     () => acquireWorkspaceLock({ lockFile, runId: 'new-run', clock }),
-    /another mutating DisciplinedRun run holds/,
+    /another mutating Rein run holds/,
   );
   assert.equal(await readText(lockFile), 'not json\n');
 });
 
 test('acquireWorkspaceLock acquires cleanly when no lock exists', async () => {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'dpr-lock-'));
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'rein-lock-'));
   const lockFile = path.join(dir, 'workspace.lock');
   const ownerToken = await acquireWorkspaceLock({
     lockFile,
@@ -381,7 +381,7 @@ test('acquireWorkspaceLock acquires cleanly when no lock exists', async () => {
 });
 
 test('the reclaim guard serializes contenders and forces a guarded recheck', async () => {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'dpr-lock-race-'));
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'rein-lock-race-'));
   const lockFile = path.join(dir, 'workspace.lock');
   const clock = () => '2026-07-17T10:00:00.000Z';
   const oldPid = 12345;
@@ -419,7 +419,7 @@ test('the reclaim guard serializes contenders and forces a guarded recheck', asy
   releaseCreate();
 
   assert.equal(await first, OWNER_A);
-  await assert.rejects(second, /another mutating DisciplinedRun run holds .*winner/s);
+  await assert.rejects(second, /another mutating Rein run holds .*winner/s);
   const record = JSON.parse(await readText(lockFile));
   assert.equal(record.runId, 'winner');
   assert.equal(record.ownerToken, OWNER_A);
@@ -427,7 +427,7 @@ test('the reclaim guard serializes contenders and forces a guarded recheck', asy
 });
 
 test('a guard left by a dead reclaimer is atomically claimable', async () => {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'dpr-lock-dead-guard-'));
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'rein-lock-dead-guard-'));
   const lockFile = path.join(dir, 'workspace.lock');
   const guardDir = `${lockFile}.reclaim`;
   const deadToken = '33333333-3333-4333-8333-333333333333';
@@ -454,7 +454,7 @@ test('a guard left by a dead reclaimer is atomically claimable', async () => {
 });
 
 test('releaseWorkspaceLock removes only the matching owner token', async () => {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'dpr-lock-owner-'));
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'rein-lock-owner-'));
   const lockFile = path.join(dir, 'workspace.lock');
   const clock = () => '2026-07-17T10:00:00.000Z';
   await acquireWorkspaceLock({ lockFile, runId: 'owner-a', clock, ownerToken: OWNER_A });
@@ -470,7 +470,7 @@ test('releaseWorkspaceLock removes only the matching owner token', async () => {
 
 test('lock initialization failures close handles and remove only files created by that attempt', async () => {
   for (const failure of ['open', 'write', 'close']) {
-    const dir = await mkdtemp(path.join(os.tmpdir(), `dpr-lock-${failure}-`));
+    const dir = await mkdtemp(path.join(os.tmpdir(), `rein-lock-${failure}-`));
     const lockFile = path.join(dir, 'workspace.lock');
     let handleClosed = false;
     let closeAttempts = 0;
@@ -515,7 +515,7 @@ test('lock initialization failures close handles and remove only files created b
 });
 
 test('clock failure occurs before any workspace or reclaim lock is created', async () => {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'dpr-lock-clock-'));
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'rein-lock-clock-'));
   const lockFile = path.join(dir, 'workspace.lock');
   await assert.rejects(
     () => acquireWorkspaceLock({

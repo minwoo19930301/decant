@@ -1,7 +1,7 @@
 # Relay10 spec initial qualitative check
 
 > Historical evaluation note: the product is now displayed as
-> **DisciplinedRun**, while the verified Skill id remains `relay10-spec`.
+> **Rein**, while the verified Skill id remains `rein-spec`.
 
 Evaluation date: **2026-07-15**
 
@@ -9,7 +9,7 @@ Status: **warning — useful qualitative signal, not reproducible benchmark evid
 
 This is a small development check, not a provider benchmark. Two fresh isolated
 Codex subagents received the same four outcome prompts. One read the updated
-`relay10-spec` Skill and contract reference; the baseline was explicitly kept
+`rein-spec` Skill and contract reference; the baseline was explicitly kept
 from all Relay10 Skill, evaluation, and prior-art files. A separate with-Skill
 run classified the eight held-out trigger prompts.
 
@@ -27,7 +27,7 @@ of the returned answers. They must not be used as a performance or safety claim.
 | Near miss | 4 observed | 4 | All narrow or read-only requests were classified as near misses. |
 
 The prompts are stored in
-`plugins/relay10/skills/relay10-spec/evals/cases.json`. The six tuning examples
+`plugins/rein/skills/rein-spec/evals/cases.json`. The six tuning examples
 in each class were not included in this held-out check.
 
 ## Outcome comparison

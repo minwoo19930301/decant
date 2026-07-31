@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rein Review"
+  short_description: "Review a fixed change set without editing"
+  default_prompt: "Use $rein-review to review this change for correctness, risk, and evidence gaps."

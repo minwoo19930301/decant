@@ -1,4 +1,0 @@
-interface:
-  display_name: "DisciplinedRun Research"
-  short_description: "Gather current read-only evidence"
-  default_prompt: "Use $relay10-research to build a sourced evidence ledger before making recommendations."

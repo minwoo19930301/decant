@@ -2,16 +2,31 @@
 
 ## Unreleased
 
-- **Product rename: DisciplinedRun** (formerly Relay10). npm package
-  `disciplinedrun@0.2.0`, primary CLI `disciplinedrun`, short alias **`dpr`**
-  (Disciplined Process Run),
-  and legacy aliases `r10` / `relay10`. Identity: a lightweight execution
-  discipline for coding agents; explicit scope, risk-aware effort, inspectable
-  evidence, and separate verdicts. The routing and invocation-budget subsystem
-  is the **Effort Governor**.
-- Keep on-disk compatibility: `.relay10/`, `relay10.config.json`, skill ids
-  `relay10-*`, plugin package name `relay10`, GitHub path unchanged in this
-  release.
+- **Product rename: Rein** (formerly Relay10, briefly DisciplinedRun in an
+  unreleased branch). npm package `rein-cli@0.2.0`, single CLI **`rein`**.
+  Identity: keep a coding-agent run on a short rein — explicit scope,
+  risk-aware effort, an invocation ceiling, inspectable file evidence, and
+  hash-frozen replay.
+- **Breaking rename of every identifier.** Config `rein.config.json`, run dir
+  `.rein/`, skill ids `rein-*`, plugin dir `plugins/rein`, plugin/marketplace
+  name `rein`, GitHub path `minwoo19930301/rein`. The `disciplinedrun`, `dpr`,
+  `r10`, and `relay10` CLI aliases and the legacy `.relay10/` /
+  `relay10.config.json` paths are **removed**, not deprecated. Nothing was ever
+  published to npm under the old names, and `v0.1.1` remains the last tagged
+  release, so no installed user is affected. Rename an existing working
+  directory by hand: `mv .relay10 .rein && mv relay10.config.json
+  rein.config.json`.
+- Drop the "Effort Governor" branding. The subsystem is described as what it
+  is: a hand-weighted keyword routing score plus an invocation ceiling, with no
+  calibration data behind the weights.
+- Document two limits the README previously left implicit: model stages run
+  through the Codex CLI only (there is no executor abstraction), and generated
+  reports plus the Reader-10 clarity heuristics are Korean-language.
+- Preserve the `v0.1.1` Relay10 launch evidence verbatim:
+  `docs/launch-report.html`, `docs/launch-verification.json`,
+  `docs/launch-reader-*.json`, and their generator/auditor scripts keep the
+  Relay10 names so their recorded `reportSha256` bindings still verify.
+
 - Gate the frontier architect after scout evidence for economy-tier work while
   preserving always/never controls and the existing artifact contract.
 - Record advisor decisions, reason codes, evidence counts, and invocation

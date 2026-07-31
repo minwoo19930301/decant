@@ -20,7 +20,7 @@ function loadInline(value, options = {}) {
 }
 
 test("loadConfig returns a mutable copy of defaults when the file is absent", async () => {
-  const config = await loadConfig({ cwd: "/definitely/missing/relay10" });
+  const config = await loadConfig({ cwd: "/definitely/missing/rein" });
   assert.deepEqual(config, DEFAULT_CONFIG);
   config.catalog.overrides.frontier = "changed";
   assert.deepEqual(DEFAULT_CONFIG.catalog.overrides, {});
@@ -59,7 +59,7 @@ test("expandEnvironment is recursive, supports fallback and escaped dollars", ()
 });
 
 test("loadConfig accepts $schema and the checked-in example matches defaults", async () => {
-  const examplePath = fileURLToPath(new URL("../examples/relay10.config.json", import.meta.url));
+  const examplePath = fileURLToPath(new URL("../examples/rein.config.json", import.meta.url));
   const config = await loadConfig({ filePath: examplePath, allowMissing: false });
   const { $schema, ...example } = config;
 

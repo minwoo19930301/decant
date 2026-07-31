@@ -1,14 +1,14 @@
 {
-  "name": "relay10",
-  "description": "DisciplinedRun skill pack for evidence-led repository work.",
+  "name": "rein",
+  "description": "Rein skill pack for evidence-led repository work.",
   "owner": {
     "name": "minwoo19930301"
   },
   "plugins": [
     {
-      "name": "relay10",
-      "source": "./plugins/relay10",
-      "description": "Eight small, on-demand DisciplinedRun skills for evidence-led repository work.",
+      "name": "rein",
+      "source": "./plugins/rein",
+      "description": "Eight small, on-demand Rein skills for evidence-led repository work.",
       "license": "MIT",
       "keywords": ["claude-code", "agent-skills", "model-routing", "release-evidence"]
     }

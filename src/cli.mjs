@@ -29,18 +29,18 @@ import {
   writeJson,
 } from './utils.mjs';
 
-export const HELP = `DisciplinedRun — lightweight execution discipline for coding agents
+export const HELP = `Rein — keep a coding-agent run on a short rein
 Explicit scope. Risk-aware effort. Inspectable evidence. Separate verdicts.
-Effort Governor: routing + invocation budget. Formerly Relay10.
+Routing + invocation ceiling. Formerly Relay10 / DisciplinedRun.
 
-Usage (disciplinedrun | dpr | r10 | relay10):
-  dpr init [--force]
-  dpr doctor [--json]
-  dpr route <task> [--json]
-  dpr run <task> [--dry-run] [--live-readers] [--budget-calls N] [--allow-verification-commands]
-  dpr inspect [run-id] [--json]
-  dpr report [run-id] [--output file]
-  dpr replay [run-id] --frozen [--output file]
+Usage:
+  rein init [--force]
+  rein doctor [--json]
+  rein route <task> [--json]
+  rein run <task> [--dry-run] [--live-readers] [--budget-calls N] [--allow-verification-commands]
+  rein inspect [run-id] [--json]
+  rein report [run-id] [--output file]
+  rein replay [run-id] --frozen [--output file]
 
 Safety:
   Config cannot replace the Codex executable or model-catalog command.
@@ -48,7 +48,8 @@ Safety:
   report writes report.regenerated.html by default and never replaces report.html.
   replay --frozen verifies artifact hashes and never changes the frozen run.
 
-Run artifacts: .relay10/runs/<run-id>/  (legacy path; still the on-disk layout)
+Model stages run through the Codex CLI only. Reports are written in Korean.
+Run artifacts: .rein/runs/<run-id>/
 `;
 
 export const RUN_ID_PATTERN = /^\d{8}T\d{9}Z-[a-z0-9]{8}$/i;
@@ -61,7 +62,7 @@ export function formatCliError(error) {
     && (syscall.startsWith('spawn ') || message.startsWith('spawn '));
   if (missingExecutable) {
     const command = error.path || error.cmd || 'executable';
-    return `${command} not found on PATH. DisciplinedRun model stages require an authenticated Codex CLI (install Codex, then re-run dpr doctor or disciplinedrun doctor).`;
+    return `${command} not found on PATH. Rein model stages require an authenticated Codex CLI (install Codex, then re-run rein doctor).`;
   }
   return message;
 }
@@ -293,14 +294,14 @@ function aliasesProtectedFile(candidate, protectedFile) {
 }
 
 export async function resolveRunDir(cwd, candidate) {
-  const runsDir = path.resolve(cwd, '.relay10', 'runs');
+  const runsDir = path.resolve(cwd, '.rein', 'runs');
   const id = candidate ?? await latestRun(runsDir);
-  if (!id) throw new Error('No DisciplinedRun run found');
+  if (!id) throw new Error('No Rein run found');
   if (!RUN_ID_PATTERN.test(id)) throw new Error(`Invalid run id: ${id}`);
 
   const runDir = path.resolve(runsDir, id);
   if (!pathIsWithin(runsDir, runDir) || path.dirname(runDir) !== runsDir) {
-    throw new Error(`Run path escapes the DisciplinedRun runs directory: ${id}`);
+    throw new Error(`Run path escapes the Rein runs directory: ${id}`);
   }
   if (!(await exists(runDir))) throw new Error(`Run not found: ${id}`);
 
@@ -311,7 +312,7 @@ export async function resolveRunDir(cwd, candidate) {
   ]);
   if (!selectedStat.isDirectory()) throw new Error(`Run path is not a directory: ${id}`);
   if (selectedRun !== path.join(runsDirectory, id)) {
-    throw new Error(`Run path escapes the DisciplinedRun runs directory: ${id}`);
+    throw new Error(`Run path escapes the Rein runs directory: ${id}`);
   }
   return runDir;
 }
@@ -529,7 +530,7 @@ if (isMainModule()) {
   main().then((code) => {
     process.exitCode = code;
   }).catch((error) => {
-    process.stderr.write(`disciplinedrun: ${formatCliError(error)}\n`);
+    process.stderr.write(`rein: ${formatCliError(error)}\n`);
     process.exitCode = 1;
   });
 }
