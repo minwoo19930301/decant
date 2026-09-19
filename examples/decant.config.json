@@ -31,5 +31,13 @@
     "maxModelCalls": 30,
     "stageTimeoutMs": 1200000,
     "commandTimeoutMs": 300000
+  },
+  "questions": {
+    "mode": "async"
+  },
+  "judgment": {
+    "model": "jev-1.13.0",
+    "timeoutMs": 3000,
+    "minConfidence": 0.8
   }
 }

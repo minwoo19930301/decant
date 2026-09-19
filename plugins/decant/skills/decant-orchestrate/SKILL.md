@@ -39,6 +39,20 @@ Tests, plans, or documentation alone do not satisfy the first progress gate. Sec
 
 Skip stages whose output cannot change the decision. Add review depth as risk, blast radius, irreversibility, or verification difficulty rises.
 
+## Questions and typed judgments
+
+Prefer `request_user_input_async` if the host offers it. Keep independent work
+running while a question is pending, and wait only before work that needs the
+answer. Do not turn a suggested or preselected option into a human answer.
+The CLI equivalent is `run --question-mode async`, followed by `questions`,
+`answer`, and, for a waiting run, `resume`. A resumed run has its own budget.
+
+Use `--jev` only when TypeSafe judgment is wanted and `TYPESAFE_API_KEY` is set.
+This sends the task text to TypeSafe. Jev is a typed decision service, not a
+coding backend; it may add planning/review scrutiny but cannot authorize tools,
+answer the user's questions, or certify completion. Network or validation
+failure keeps deterministic routing. `--dry-run` does not call Jev.
+
 ## Handoff contract
 
 For every active stage, record:

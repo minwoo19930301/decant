@@ -38,13 +38,13 @@ function normalizeStatus(value) {
   const status = String(value ?? '').toLowerCase();
   if (['pass', 'passed', 'ok', 'success', 'succeeded', 'complete', 'completed', 'done', 'true'].includes(status)) return 'pass';
   if (['fail', 'failed', 'error', 'blocked', 'false'].includes(status)) return 'fail';
-  if (['warn', 'warning', 'running', 'partial', 'skipped', 'pending'].includes(status)) return 'warn';
+  if (['warn', 'warning', 'running', 'partial', 'skipped', 'pending', 'waiting'].includes(status)) return 'warn';
   return 'neutral';
 }
 
 function statusBadge(value, explicitLabel) {
   const status = normalizeStatus(value);
-  const label = explicitLabel || STATUS_LABELS[status];
+  const label = explicitLabel || (value === 'waiting' ? '답변 대기' : STATUS_LABELS[status]);
   return `<span class="status status--${status}"><span aria-hidden="true">${status === 'pass' ? '●' : status === 'fail' ? '×' : status === 'warn' ? '▲' : 'i'}</span> ${escapeHtml(label)}</span>`;
 }
 

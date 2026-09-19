@@ -9,6 +9,7 @@ import {
 } from 'node:fs';
 import {
   copyFile,
+  readFile,
   realpath,
   rename,
   stat,
@@ -21,7 +22,9 @@ import { discoverCatalog } from './catalog.mjs';
 import { DEFAULT_PROVIDER, PROVIDER_IDS, resolveProvider } from './providers/index.mjs';
 import { CONFIG_FILENAME, DEFAULT_CONFIG, loadConfig } from './config.mjs';
 import { spawnCapture } from './executor.mjs';
-import { routeTask } from './router.mjs';
+import { routeTask, routeWithJudgment } from './router.mjs';
+import { judgeTask } from './jev.mjs';
+import { readQuestions, answerQuestion, questionSummary } from './questions.mjs';
 import { assessReviewer, REVIEWER_SCHEMA } from './pipeline.mjs';
 import { standaloneReviewerPrompt } from './prompts.mjs';
 import { checkAgainstContract, loadContract, renderContract } from './contract.mjs';
@@ -41,8 +44,11 @@ Routing + invocation ceiling + a pluggable backend. Formerly Relay10.
 Usage:
   decant init [--force]
   decant doctor [--json]
-  decant route <task> [--json] [--lane auto|fast|full] [--time-budget-minutes N] [--first-artifact path]
-  decant run <task> [--dry-run] [--live-readers] [--budget-calls N] [--lane auto|fast|full] [--time-budget-minutes N] [--first-artifact path] [--allow-verification-commands]
+  decant route <task> [--json] [--jev] [--lane auto|fast|full] [--time-budget-minutes N] [--first-artifact path]
+  decant run <task> [--dry-run] [--jev] [--question-mode async|off] [--live-readers] [--budget-calls N] [--lane auto|fast|full] [--time-budget-minutes N] [--first-artifact path] [--allow-verification-commands]
+  decant questions [run-id] [--json]
+  decant answer <run-id> <question-id> <answer> [--json]
+  decant resume [run-id] [--dry-run] [--jev] [--budget-calls N] [--allow-verification-commands]
   decant review <task> [--contract file] [--json] [--output file]
   decant inspect [run-id] [--json]
   decant report [run-id] [--output file]
@@ -53,6 +59,10 @@ Safety:
   Configured verification commands run only with --allow-verification-commands.
   report writes report.regenerated.html by default and never replaces report.html.
   replay --frozen verifies artifact hashes and never changes the frozen run.
+  Async questions do not block independent planning; required answers gate edits.
+  resume starts a new budgeted child run and keeps the prior run frozen.
+  --jev sends only the task text to TypeSafe for advisory judgment (one request).
+  Jev never grants permissions; missing keys/errors use deterministic routing.
 
 Backend: config "provider" selects codex or kiro. Run doctor to see which one is
 active and what it can enforce. Reports are written in Korean.
@@ -92,6 +102,7 @@ const COMMAND_SPECS = Object.freeze({
     maxPositionals: Number.POSITIVE_INFINITY,
     flags: {
       json: { key: 'json', type: BOOLEAN },
+      jev: { key: 'jev', type: BOOLEAN },
       lane: { key: 'lane', type: VALUE },
       'time-budget-minutes': { key: 'timeBudgetMinutes', type: VALUE },
       'first-artifact': { key: 'firstArtifact', type: VALUE },
@@ -102,11 +113,30 @@ const COMMAND_SPECS = Object.freeze({
     maxPositionals: Number.POSITIVE_INFINITY,
     flags: {
       'dry-run': { key: 'dryRun', type: BOOLEAN },
+      jev: { key: 'jev', type: BOOLEAN },
+      'question-mode': { key: 'questionMode', type: VALUE },
       'live-readers': { key: 'liveReaders', type: BOOLEAN },
       'budget-calls': { key: 'budgetCalls', type: VALUE },
       lane: { key: 'lane', type: VALUE },
       'time-budget-minutes': { key: 'timeBudgetMinutes', type: VALUE },
       'first-artifact': { key: 'firstArtifact', type: VALUE },
+      'allow-verification-commands': { key: 'allowVerificationCommands', type: BOOLEAN },
+    },
+  },
+  questions: {
+    minPositionals: 0, maxPositionals: 1,
+    flags: { json: { key: 'json', type: BOOLEAN } },
+  },
+  answer: {
+    minPositionals: 3, maxPositionals: Number.POSITIVE_INFINITY,
+    flags: { json: { key: 'json', type: BOOLEAN } },
+  },
+  resume: {
+    minPositionals: 0, maxPositionals: 1,
+    flags: {
+      'dry-run': { key: 'dryRun', type: BOOLEAN },
+      jev: { key: 'jev', type: BOOLEAN },
+      'budget-calls': { key: 'budgetCalls', type: VALUE },
       'allow-verification-commands': { key: 'allowVerificationCommands', type: BOOLEAN },
     },
   },
@@ -266,6 +296,7 @@ function printRoute(plan, asJson, stdout, estimate = null) {
     return;
   }
   stdout.write(`Assessment: ${plan.assessment.role} (score ${plan.assessment.score})\n`);
+  if (plan.judgment) stdout.write(`Jev: ${plan.judgment.status} (${plan.judgment.reasonCode}); requests=${plan.judgment.requestCount ?? 0}; advisory only\n`);
   if (plan.routingPolicy?.lane) {
     const budget = plan.routingPolicy.timeBudgetMinutes === null
       ? 'none'
@@ -417,6 +448,7 @@ async function copyReportAtomically(reportFile, outputFile) {
  *   0  pass  — correctness signals held
  *   2  fail  — a stage errored, the reviewer rejected, verification failed, or
  *              the report itself is broken or unsafe
+ *   4  waiting — a required human answer is pending; edits have not started
  *   3  warn  — correctness signals held but nothing was proven, e.g. no
  *              verification commands were configured
  *
@@ -427,11 +459,24 @@ async function copyReportAtomically(reportFile, outputFile) {
 export function exitCodeForStatus(status) {
   if (status === 'pass') return 0;
   if (status === 'warn') return 3;
+  if (status === 'waiting') return 4;
   return 2;
 }
 
 async function pipelineModule(injected) {
   return injected ?? import('./pipeline.mjs');
+}
+
+function printQuestions(state, stdout) {
+  if (!state) { stdout.write('No questions for this run.\n'); return; }
+  for (const question of state.questions) {
+    stdout.write(`[${question.status}${question.required ? '; required before edits' : '; optional'}] ${question.id}: ${question.title}\n`);
+    if (question.options?.length) stdout.write(`  Options: ${question.options.join(' / ')} (free text accepted)\n`);
+    if (question.status === 'answered') stdout.write(`  Answer: ${question.answer}\n`);
+  }
+  if (state.questions.some(question => question.status === 'pending')) {
+    stdout.write(`Answer from another terminal: decant answer ${state.runId} <question-id> "<answer>"\n`);
+  }
 }
 
 export async function main(argv = process.argv.slice(2), context = {}) {
@@ -453,15 +498,27 @@ export async function main(argv = process.argv.slice(2), context = {}) {
     return 0;
   }
 
+  if (command === 'questions' || command === 'answer') {
+    const runDir = await resolveRunDir(cwd, positionals[0]);
+    const runId = path.basename(runDir);
+    const state = command === 'answer'
+      ? await answerQuestion({ cwd, runId, questionId: positionals[1], answer: positionals.slice(2).join(' ') })
+      : await readQuestions({ cwd, runId });
+    if (flags.json) stdout.write(`${JSON.stringify(state, null, 2)}\n`);
+    else printQuestions(state, stdout);
+    return 0;
+  }
+
   if (command === 'doctor') {
     const spawnCaptureImpl = context.spawnCaptureImpl ?? spawnCapture;
     const configAndCatalogImpl = context.configAndCatalogImpl ?? configAndCatalog;
     // Which executable to look for is the provider's business, not doctor's.
     let selected;
+    let doctorConfig;
     let selectedError;
     try {
-      const config = await loadConfig({ cwd });
-      selected = resolveProvider(config.provider ?? DEFAULT_PROVIDER);
+      doctorConfig = await loadConfig({ cwd });
+      selected = resolveProvider(doctorConfig.provider ?? DEFAULT_PROVIDER);
     } catch (error) {
       selectedError = formatCliError(error);
       selected = resolveProvider(DEFAULT_PROVIDER);
@@ -500,6 +557,12 @@ export async function main(argv = process.argv.slice(2), context = {}) {
         executable: selected.executable,
         capabilities: { ...selected.capabilities },
       },
+      judgment: {
+        provider: 'jev', enabledBy: '--jev',
+        keyConfigured: Boolean(process.env.TYPESAFE_API_KEY?.trim()),
+        model: doctorConfig?.judgment?.model ?? DEFAULT_CONFIG.judgment.model,
+        timeoutMs: doctorConfig?.judgment?.timeoutMs ?? DEFAULT_CONFIG.judgment.timeoutMs,
+      },
       backend: backendDetail,
       config: (await exists(path.join(cwd, CONFIG_FILENAME))) ? CONFIG_FILENAME : 'defaults',
       roles: catalog?.roles,
@@ -514,19 +577,60 @@ export async function main(argv = process.argv.slice(2), context = {}) {
       for (const [role, selectedRole] of Object.entries(result.roles ?? {})) {
         stdout.write(`PASS ${role}: ${selectedRole.model}/${selectedRole.effort}\n`);
       }
+      stdout.write(`INFO Jev ${result.judgment.model}: ${result.judgment.keyConfigured ? 'key configured' : 'TYPESAFE_API_KEY missing'}; opt in with --jev\n`);
       if (result.error) stdout.write(`FAIL ${result.error}\n`);
     }
     return result.ok ? 0 : 1;
   }
 
-  if (command === 'route' || command === 'run') {
-    const task = positionals.join(' ').trim();
+  if (command === 'route' || command === 'run' || command === 'resume') {
+    let task = positionals.join(' ').trim();
+    let questionContext;
+    const pipeline = await pipelineModule(context.pipeline);
+    if (command === 'resume') {
+      const parentDir = await resolveRunDir(cwd, positionals[0]);
+      const parent = await pipeline.verifyFrozenRun(parentDir);
+      if (!['waiting', 'pass', 'warn'].includes(parent.manifest.status)) throw new Error('Resume requires a frozen waiting or completed run');
+      const parentRunId = path.basename(parentDir);
+      for (const name of ['events.jsonl', 'questions.json']) {
+        if (!Object.hasOwn(parent.manifest.artifacts, name)) throw new Error(`Frozen parent is missing required artifact: ${name}`);
+      }
+      const started = (await readFile(path.join(parentDir, 'events.jsonl'), 'utf8'))
+        .split('\n').filter(line => line.trim()).map(line => JSON.parse(line))
+        .filter(event => event.type === 'run.started');
+      if (started.length !== 1 || typeof started[0].task !== 'string'
+          || started[0].task !== parent.manifest.task || parent.manifest.runId !== parentRunId) {
+        throw new Error('Parent task or run identity does not match the frozen evidence');
+      }
+      const state = await readQuestions({ cwd, runId: parentRunId });
+      if (!state || questionSummary(state).answered === 0) throw new Error('No human answers are available to resume');
+      if (questionSummary(state).requiredPending > 0) throw new Error('Required questions remain unanswered; use decant answer before resume');
+      const snapshot = await readJson(path.join(parentDir, 'questions.json'));
+      const definition = question => JSON.stringify([question.id, question.title, question.options ?? [], question.required]);
+      if (snapshot.runId !== parentRunId || snapshot.current?.runId !== parentRunId
+          || !Array.isArray(snapshot.current?.questions)
+          || JSON.stringify(state.questions.map(definition)) !== JSON.stringify(snapshot.current.questions.map(definition))) {
+        throw new Error('Question definitions do not match the frozen parent run');
+      }
+      task = parent.manifest.task;
+      questionContext = { parentRunId, questions: state.questions, ...(snapshot.parent ? { parent: snapshot.parent } : {}) };
+    }
     const configAndCatalogImpl = context.configAndCatalogImpl ?? configAndCatalog;
     const { config, catalog } = await configAndCatalogImpl(cwd);
-    const route = routeTask(task, routeOptions(config, flags));
+    const questionMode = flags.questionMode ?? config.questions?.mode ?? 'async';
+    if (!['async', 'off'].includes(questionMode)) throw new Error('question-mode must be async or off');
+    if (command !== 'route') requireVerificationOptIn(config, flags);
+    const options = routeOptions(config, flags);
+    let route = routeTask(task, options);
+    if (flags.jev) {
+      const judgment = flags.dryRun
+        ? { provider: 'jev', status: 'skipped', reasonCode: 'dry-run', requestCount: 0 }
+        : await (context.judgeTaskImpl ?? judgeTask)(task, { ...config.judgment });
+      route = routeWithJudgment(task, options, judgment);
+    }
     const liveReaders = Boolean(flags.liveReaders || config.readerGate?.mode === 'live');
-    const pipeline = await pipelineModule(context.pipeline);
     const plan = pipeline.buildRunPlan({ task, route, catalog, config, liveReaders });
+    if (route.judgment) plan.judgment = route.judgment;
     // Calibrated from this workspace's own recorded runs, so the number improves
     // with use instead of staying a guess baked into the source.
     const history = await collectHistory(path.resolve(cwd, '.decant', 'runs'));
@@ -553,8 +657,12 @@ export async function main(argv = process.argv.slice(2), context = {}) {
       liveReaders,
       budgetCalls,
       allowVerificationCommands: Boolean(flags.allowVerificationCommands),
+      questionMode,
+      questionContext,
+      onQuestions: state => printQuestions(state, stdout),
     });
     stdout.write(`Run ${result.manifest.status}: ${result.runDir}\n`);
+    if (result.manifest.status === 'waiting') stdout.write(`Required answers pending. Then run: decant resume ${path.basename(result.runDir)}\n`);
     // Printed as its own line, not folded into the verdict. `status` answers
     // "is the change sound"; this answers "is the write-up readable".
     const clarity = result.manifest.reportClarity;

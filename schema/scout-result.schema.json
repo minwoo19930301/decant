@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["summary", "facts", "evidence", "open_questions"],
+  "required": ["summary", "facts", "evidence", "open_questions", "questions"],
   "properties": {
     "summary": { "type": "string", "minLength": 1 },
     "facts": {
@@ -25,6 +25,21 @@
     "open_questions": {
       "type": "array",
       "items": { "type": "string", "minLength": 1 }
+    },
+    "questions": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "title", "options", "required"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$" },
+          "title": { "type": "string", "minLength": 1, "maxLength": 1000 },
+          "options": { "type": ["array", "null"], "minItems": 1, "maxItems": 10, "items": { "type": "string", "minLength": 1, "maxLength": 500 } },
+          "required": { "type": "boolean" }
+        }
+      }
     }
   }
 }

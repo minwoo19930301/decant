@@ -14,9 +14,12 @@ from evidence, and ask the user only for decisions that evidence cannot make.
    behavior, or other facts that local evidence can answer.
 2. Ask only when the answer would materially change the outcome, authority,
    risk, acceptance criteria, or irreversible action.
-3. Ask one question at a time and default to at most three questions. If a
-   blocking decision remains after three, stop with an unresolved contract
-   instead of guessing or starting implementation.
+3. Default to at most three questions. Prefer the host
+   `request_user_input_async` tool when available: post the decision, continue
+   independent inspection or planning, and incorporate the answer before its
+   dependent step. If asynchronous input is unavailable, ask one question at a time.
+   A required answer stays pending; silence and a preselected option are not answers.
+   Stop only the dependent work when a blocking decision remains.
 4. Record each material premise as `user_decision`, `repo_fact`,
    `safe_assumption`, or `blocker`, with its evidence or owner.
 5. Do not treat "알아서 해", "use your judgment", silence, or a broad goal as
@@ -40,8 +43,8 @@ the user's authority and cannot materially change the result.
 Before handing work to `decant-build`, restate the result as a Confirmed Task
 Contract using [the contract fields](./references/task-contract.md). A clear
 original request can confirm revision 1 without another ceremonial question.
-When clarification changed or selected the scope, ask the user to confirm the
-restatement. A contract with a blocker or unresolved material decision cannot
+When an explicit answer already selects the restated scope, record it as
+confirmation; ask again only if a material decision is still unresolved. A contract with a blocker or unresolved material decision cannot
 authorize implementation.
 
 After confirmation, do not silently rewrite intent. A material requirement
@@ -76,5 +79,9 @@ Produce:
 
 For plan-only requests, stop after the specification. Do not implement or publish.
 
-This is a lightweight confirmation contract, not an immutable runtime Seed,
-numeric ambiguity score, ontology, resume engine, or autonomous evolution loop.
+For the Decant CLI, `--question-mode async` persists questions while planning
+continues. Read them with `decant questions <run-id> --json` and answer with
+`decant answer <run-id> <question-id> "<answer>"`. Required answers stop edits;
+`decant resume <run-id>` starts a new bounded child run after answers arrive.
+The original evidence remains frozen. Optional late answers belong to a follow-up,
+not an unrecorded rewrite of a completed result.

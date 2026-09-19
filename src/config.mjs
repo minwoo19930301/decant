@@ -11,6 +11,8 @@ export const DEFAULT_CONFIG = deepFreeze({
   catalog: {
     overrides: {},
   },
+  questions: { mode: "async" },
+  judgment: { model: "jev-1.13.0", timeoutMs: 3000, minConfidence: 0.8 },
   routing: {
     balancedThreshold: 7,
     frontierThreshold: 15,
@@ -47,6 +49,8 @@ const ROOT_KEYS = Object.freeze([
   "provider",
   "catalog",
   "routing",
+  "questions",
+  "judgment",
   "effort",
   "verification",
   "readerGate",
@@ -156,6 +160,23 @@ function validateRouting(routing) {
   }
 }
 
+function validateQuestions(questions) {
+  assertObject(questions, "questions");
+  assertKnownKeys(questions, ["mode"], "questions");
+  if (Object.hasOwn(questions, "mode")) assertEnum(questions.mode, ["async", "off"], "questions.mode");
+}
+
+function validateJudgment(judgment) {
+  assertObject(judgment, "judgment");
+  assertKnownKeys(judgment, ["model", "timeoutMs", "minConfidence"], "judgment");
+  if (Object.hasOwn(judgment, "model")) {
+    assertString(judgment.model, "judgment.model", { maxLength: 128 });
+    if (!/^jev-(?:latest|preview|\d+\.\d+\.\d+)$/.test(judgment.model)) configError("judgment.model", "must be a Jev model ID");
+  }
+  if (Object.hasOwn(judgment, "timeoutMs")) assertInteger(judgment.timeoutMs, "judgment.timeoutMs", 100, 30000);
+  if (Object.hasOwn(judgment, "minConfidence") && (typeof judgment.minConfidence !== "number" || !Number.isFinite(judgment.minConfidence) || judgment.minConfidence < 0.5 || judgment.minConfidence > 1)) configError("judgment.minConfidence", "must be a number between 0.5 and 1");
+}
+
 function validateEffort(effort) {
   assertObject(effort, "effort");
   assertKnownKeys(effort, STAGE_IDS, "effort");
@@ -259,6 +280,8 @@ export function validateConfig(config) {
 
   if (Object.hasOwn(config, "catalog")) validateCatalog(config.catalog);
   if (Object.hasOwn(config, "routing")) validateRouting(config.routing);
+  if (Object.hasOwn(config, "questions")) validateQuestions(config.questions);
+  if (Object.hasOwn(config, "judgment")) validateJudgment(config.judgment);
   if (Object.hasOwn(config, "effort")) validateEffort(config.effort);
   if (Object.hasOwn(config, "verification")) validateVerification(config.verification);
   if (Object.hasOwn(config, "readerGate")) validateReaderGate(config.readerGate);

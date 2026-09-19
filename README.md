@@ -15,7 +15,12 @@ adds four things your agent does not give you on its own:
 - **signals that stay separate** — your tests, the reviewer model, and the
   readability check are three different answers, never merged into one
 - **a hard cap** — `--budget-calls` limits how many times the agent launches, so
-  a run can't quietly become thirty
+a run can't quietly become thirty
+
+**New in 0.3:** ask questions without stopping independent planning, answer from
+another terminal, and resume with a recorded answer trail. Optional
+[Jev judgments](docs/jev.md) can raise routing scrutiny before the existing
+Codex/Kiro stages run. [Changelog](CHANGELOG.md).
 
 **The name.** To decant is to pour wine into another vessel so the clear part
 comes over and the sediment stays behind. Keep only the practices worth keeping
@@ -211,6 +216,42 @@ decant run "add pagination to the users endpoint"
 
 Files appear under `.decant/runs/<id>/`. Open `report.html`.
 
+**…answer a question while the agent keeps working?**
+
+```bash
+decant run "add a workspace export feature" --question-mode async
+# In another terminal, using the run and question IDs printed above:
+decant questions <run-id>
+decant answer <run-id> <question-id> "Export JSON; exclude credentials."
+# If the run stopped with status waiting (exit 4):
+decant resume <run-id>
+```
+
+Async is the default. The scout can post up to three questions, then independent
+planning continues. Required answers gate the maker; optional questions allow
+explicit assumptions. `resume` starts a new budgeted child run with the recorded
+answers and preserves the parent's files. It does not restart a process at its
+last instruction. Fast-lane runs skip the scout and do not generate questions.
+[Full behavior and late answers](docs/async-questions.md).
+
+**…use Jev for routing advice?**
+
+With `TYPESAFE_API_KEY` set in your environment:
+
+```bash
+decant doctor
+decant route "add a workspace export feature" --jev --json
+decant run "add a workspace export feature" --jev
+```
+
+Only `--jev` sends the task text to TypeSafe. The default is pinned to
+`jev-1.13.0`, with one request and a three-second deadline. Jev can increase model
+capability or risk scrutiny; it cannot lower the deterministic route, permit
+writes, or approve verification commands. Missing keys and API failures fall
+back to deterministic routing. `run --dry-run --jev` makes no Jev request.
+Jev's request is recorded separately from the coding-stage invocation budget.
+[Configuration, API contract, and limits](docs/jev.md).
+
 **…use a different agent CLI?**
 
 Put this in `decant.config.json`:
@@ -348,6 +389,8 @@ you want to check the report against what actually happened.
 ├── run.json           the plan, the backend used, budget spent, a sha256 per file
 ├── events.jsonl       one line per stage start, finish, decision
 ├── scout.json         the cheap look, including what it was unsure about
+├── questions.json     immutable answer snapshot before the maker
+├── judgment.json      optional Jev result and request count (only with --jev)
 ├── architect.md       the plan — or why it was skipped
 ├── maker.md           what the implementing stage says it changed
 ├── verification.json  exit code and output of your commands
@@ -362,14 +405,17 @@ claims, so the report never merges them into one verdict.
 If a stage fails, the run stops there. You keep what was produced and nothing is
 rolled back.
 
+Live question answers are stored separately in `.decant/questions/<id>.json`.
+Answering a question does not rewrite a completed run's evidence.
+
 ---
 
 ## What it will not do
 
 Three that will actually change your mind:
 
-- **The routing is a guess.** Keyword patterns and hand-picked weights, with no
-  calibration and no published comparison against just prompting your model.
+- **The routing is a guess.** Keyword patterns and hand-picked weights, optionally
+  raised by Jev judgments, with no published calibration for this combination.
 - **`--budget-calls` counts launches, not money.** Not tokens, not turns, not
   currency.
 - **Nothing here proves your code is correct.** The readability check is a
@@ -414,6 +460,8 @@ In Claude Code:
 ## More detail
 
 - [Benchmarks](docs/benchmarks.md) — three measured runs, two of which the harness lost
+- [Async questions](docs/async-questions.md) — answer while planning continues and resume safely
+- [Jev judgments](docs/jev.md) — optional TypeSafe routing, configuration, and limits
 - [A/B: with and without the harness](docs/ab-flamingo.md) — the flamingo run in detail
 - [Limits](docs/limits.md) — every claim this tool does not make
 - [Architecture](docs/architecture.md) — stage contracts, the provider
