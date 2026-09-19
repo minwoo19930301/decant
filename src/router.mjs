@@ -104,7 +104,7 @@ export function assessTask(task, options = {}) {
 
   const balancedThreshold = Number(options.balancedThreshold ?? 7);
   const frontierThreshold = Number(options.frontierThreshold ?? 15);
-  const role = dimensions.risk === 3
+  const heuristicRole = dimensions.risk === 3
     || dimensions.blastRadius === 3
     || dimensions.reversibility === 0
     || score >= frontierThreshold
@@ -112,6 +112,9 @@ export function assessTask(task, options = {}) {
     : score >= balancedThreshold
       ? "balanced"
       : "economy";
+  const roles = ["economy", "balanced", "frontier"];
+  if (options.roleFloor !== undefined && !roles.includes(options.roleFloor)) throw new TypeError("Unknown role floor");
+  const role = roles[Math.max(roles.indexOf(heuristicRole), roles.indexOf(options.roleFloor))];
 
   return {
     task: text,
@@ -308,6 +311,25 @@ export function routeTask(task, options = {}) {
     stages,
     byId: Object.fromEntries(stages.map((stage) => [stage.id, stage])),
   };
+}
+
+/** Advisory judgments may add scrutiny, never remove deterministic safeguards. */
+export function routeWithJudgment(task, options, judgment) {
+  const baseline = routeTask(task, options);
+  if (judgment?.status !== 'ok') return { ...baseline, judgment };
+  const roles = ['economy', 'balanced', 'frontier'];
+  const promote = roles.includes(judgment.role) && roles.indexOf(judgment.role) > roles.indexOf(baseline.assessment.role);
+  const highRisk = typeof judgment.risk === 'number' && judgment.risk >= 0.8 && judgment.risk <= 1;
+  if (!promote && !highRisk) return { ...baseline, judgment: { ...judgment, applied: false } };
+  const dimensions = Object.fromEntries(DIMENSIONS.map(key => [key, baseline.assessment[key]]));
+  if (highRisk) dimensions.risk = Math.max(dimensions.risk, 3);
+  const routed = routeTask(task, {
+    ...options, dimensions, roleFloor: promote ? judgment.role : baseline.assessment.role,
+    readOnly: baseline.assessment.readOnly,
+    // Additional scrutiny cannot silently keep the fast lane's skipped checks.
+    lane: 'full',
+  });
+  return { ...routed, judgment: { ...judgment, applied: true, baselineRole: baseline.assessment.role } };
 }
 
 function clampPositiveInteger(value, name) {

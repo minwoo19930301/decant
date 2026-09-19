@@ -56,6 +56,46 @@
       "maxLength": 2048
     },
     "version": { "const": 1 },
+    "provider": {
+      "enum": [
+        "codex",
+        "kiro"
+      ]
+    },
+    "questions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": [
+            "async",
+            "off"
+          ]
+        }
+      }
+    },
+    "judgment": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Settings for explicit --jev requests; configuration alone never sends data.",
+      "properties": {
+        "model": {
+          "type": "string",
+          "pattern": "^jev-(?:latest|preview|[0-9]+\\.[0-9]+\\.[0-9]+)$",
+          "maxLength": 128
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 30000
+        },
+        "minConfidence": {
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 1
+        }
+      }
+    },
     "catalog": {
       "type": "object",
       "additionalProperties": false,

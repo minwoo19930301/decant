@@ -1,5 +1,42 @@
 # Changelog
 
+## 0.3.0 — 2026-09-19
+
+### Added
+
+- Async questions in the CLI pipeline and host skills. The scout can post up to
+  three structured questions; independent planning continues while required
+  answers gate the maker. Legacy `open_questions` remain compatible and optional.
+- `questions`, `answer`, and `resume` commands. Answers are persisted outside
+  frozen run artifacts with cross-process locking and atomic writes. A waiting
+  run exits with code 4 and releases the workspace lock. Resume validates the
+  parent's evidence and starts a new child with its own invocation budget.
+- Stage-specific answer snapshots, explicit assumptions for optional questions,
+  and inherited answer context. Silence and suggested choices are never answers.
+- Explicit `--jev` routing advice using TypeSafe's typed Choice/Noul API, pinned
+  to `jev-1.13.0`. One bounded request can increase routing scrutiny but cannot
+  lower deterministic risk or grant permissions. Unavailable/invalid responses
+  fall back to the existing route; dry runs do not call Jev.
+- `doctor` reports Jev configuration and key presence without exposing the key.
+  Judgment metadata, request count, and returned token usage are recorded
+  separately from coding-stage invocation budgets.
+- Behavioral tests for concurrent answers, dependency gates, child runs, frozen
+  evidence, task/definition tampering, Jev's wire contract, fallback, and routing
+  authority. These use fake model backends and mocked Jev responses; they do not
+  establish live hosted-model performance or availability.
+
+### Changed
+
+- Host skills prefer native async question tools when available and avoid a
+  second confirmation when the user has already supplied the necessary answer.
+- Syntax validation now checks every JavaScript module in `src`, `test`, and
+  `scripts`, including the new question and judgment modules.
+- Config schema now includes the existing `provider` option as well as question
+  and judgment settings. Existing version-1 configs remain supported.
+- Scout output uses Codex-compatible required fields and nullable choices;
+  legacy scout artifacts remain readable. A live read-only scout call verified
+  both choice and free-text question output. See [validation evidence](docs/verification-0.3.0.md).
+
 ## 0.2.0 — 2026-07-31
 
 ### Measured, before anything else

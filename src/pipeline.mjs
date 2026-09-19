@@ -34,6 +34,7 @@ import {
 } from './reader10.mjs';
 import { generateReport } from './report.mjs';
 import { validateConfig } from './config.mjs';
+import { normalizeQuestions, openQuestions, questionSummary, readQuestions } from './questions.mjs';
 import { readJson, readText, runId, sha256, writeJson, writeText } from './utils.mjs';
 
 const SCOUT_SCHEMA = fileURLToPath(new URL('../schema/scout-result.schema.json', import.meta.url));
@@ -52,6 +53,7 @@ const OUTPUTS = Object.freeze({
   readers: 'readers.json',
   events: 'events.jsonl',
   report: 'report.html',
+  questions: 'questions.json',
 });
 
 function nonEmptyTask(task) {
@@ -186,7 +188,9 @@ export function decideAdvisor({
   minimumInvocations,
 } = {}) {
   const activation = stage?.enabled === false ? 'never' : stage?.activation ?? 'always';
-  const openQuestionCount = Array.isArray(scout?.open_questions) ? scout.open_questions.length : 0;
+  const openQuestionCount = Array.isArray(scout?.questions)
+    ? scout.questions.length
+    : Array.isArray(scout?.open_questions) ? scout.open_questions.length : 0;
   const evidence = {
     assessment: {
       role: assessment?.role ?? 'unknown',
@@ -307,6 +311,16 @@ function assertScout(value) {
   if (value.open_questions.some((item) => typeof item !== 'string' || !item.trim())) {
     throw new TypeError('scout.open_questions must contain non-empty strings');
   }
+  if (Object.hasOwn(value, 'questions')) {
+    if (!Array.isArray(value.questions)) throw new TypeError('scout.questions must be an array');
+    for (const item of value.questions) {
+      if (!item || typeof item !== 'object' || Array.isArray(item)
+        || typeof item.id !== 'string' || typeof item.required !== 'boolean') {
+        throw new TypeError('scout.questions must contain structured questions with id and required');
+      }
+    }
+    normalizeQuestions(value.questions);
+  }
   for (const [index, item] of value.evidence.entries()) {
     if (!item || typeof item !== 'object') throw new TypeError(`scout.evidence[${index}] must be an object`);
     if (typeof item.title !== 'string' || typeof item.url !== 'string' || typeof item.excerpt !== 'string') {
@@ -376,11 +390,15 @@ function skippedReviewer(reason) {
   };
 }
 
-function deriveRisks(scout, reviewer, verification) {
+function deriveRisks(scout, reviewer, verification, questionState = null) {
   const findings = Array.isArray(reviewer?.findings)
     ? reviewer.findings.map((finding) => finding.message).filter(Boolean)
     : [];
-  const questions = Array.isArray(scout?.open_questions) ? scout.open_questions : [];
+  const questions = questionState
+    ? questionState.questions.filter((question) => question.status !== 'answered').map((question) => question.title)
+    : Array.isArray(scout?.questions)
+      ? scout.questions.map((question) => question.title)
+      : Array.isArray(scout?.open_questions) ? scout.open_questions : [];
   const risks = [...findings, ...questions];
   if (verification.status === 'unverified') {
     risks.push('구현 변경에 대해 승인된 결정론적 검증 명령이 실행되지 않았습니다.');
@@ -459,6 +477,7 @@ function reportData(manifest, { summary, verification, readers, evidence, nextSt
     reader10: readers,
     evidence,
     nextSteps,
+    questions: manifest.questions,
   };
 }
 
@@ -1029,6 +1048,9 @@ export async function runPipeline({
   now = () => new Date(),
   monotonicNow = () => performance.now(),
   idFactory,
+  questionMode = 'async',
+  questionContext = null,
+  onQuestions,
 } = {}) {
   // The pipeline never names a CLI. It resolves whichever provider the config
   // selected and calls the one stage contract every provider implements, so
@@ -1036,6 +1058,15 @@ export async function runPipeline({
   // injectable for tests.
   const activeProvider = provider ?? resolveProvider(config?.provider ?? DEFAULT_PROVIDER);
   const runStageImpl = runCodexImpl ?? ((options) => activeProvider.runStage(options));
+  if (!['async', 'off'].includes(questionMode)) throw new TypeError('questionMode must be async or off');
+  if (onQuestions !== undefined && typeof onQuestions !== 'function') {
+    throw new TypeError('onQuestions must be a function');
+  }
+  const parentQuestionContext = questionContext == null ? null : structuredClone(questionContext);
+  const parentRunId = parentQuestionContext?.parentRunId ?? null;
+  if (parentRunId !== null && !RUN_ID_PATTERN.test(parentRunId)) {
+    throw new TypeError('questionContext.parentRunId must be a valid run id');
+  }
   const root = path.resolve(cwd);
   const { plan, budget } = validateRunRequest({
     task,
@@ -1101,6 +1132,8 @@ export async function runPipeline({
   let runCreated = false;
   let writeQueue = Promise.resolve();
   let eventSequence = 0;
+  let questionState = null;
+  let stageQuestionContext = parentQuestionContext;
 
   const manifest = {
     version: 1,
@@ -1108,6 +1141,18 @@ export async function runPipeline({
     task: plan.task,
     cwd: root,
     status: 'running',
+    ...(parentRunId ? { parentRunId } : {}),
+    ...(route.judgment ? { judgment: structuredClone(route.judgment) } : {}),
+    questions: {
+      mode: questionMode,
+      snapshot: OUTPUTS.questions,
+      pending: 0,
+      requiredPending: 0,
+      answered: 0,
+      dependentStage: 'maker',
+      dependencyRule: 'all-required-questions-answered',
+      ...(parentRunId ? { parentRunId } : {}),
+    },
     createdAt: clock(),
     updatedAt: clock(),
     assessment: plan.assessment,
@@ -1161,6 +1206,47 @@ export async function runPipeline({
   async function persist() {
     manifest.updatedAt = clock();
     await writeJson(manifestFile, manifest);
+  }
+
+  function questionSnapshot() {
+    return {
+      version: 1,
+      runId: id,
+      mode: questionMode,
+      ...(parentRunId ? { parentRunId } : {}),
+      parent: parentQuestionContext,
+      current: questionState,
+    };
+  }
+
+  async function refreshQuestionContext(snapshotFile = null) {
+    if (questionMode === 'async' && questionState) {
+      const refreshed = await readQuestions({ cwd: root, runId: id });
+      if (!refreshed) throw new Error('the active question queue disappeared before its dependency check');
+      const definitions = (state) => JSON.stringify(state.questions.map((question) => (
+        [question.id, question.title, question.options ?? [], question.required]
+      )));
+      if (definitions(refreshed) !== definitions(questionState)) {
+        throw new Error('Question definitions changed during the run; refusing to continue with altered dependencies');
+      }
+      questionState = refreshed;
+    }
+    const requiredQuestions = (questionState?.questions ?? []).filter((question) => question.required);
+    const requiredIds = requiredQuestions
+      .filter((question) => question.status !== 'answered')
+      .map((question) => question.id);
+    Object.assign(manifest.questions, questionSummary(questionState), {
+      requiredIds: requiredQuestions.map((question) => question.id),
+      pendingRequiredIds: requiredIds,
+    });
+    stageQuestionContext = questionSnapshot();
+    if (snapshotFile) {
+      // A stage snapshot is written once. Later answers go to a separate file,
+      // so the exact information used to authorize mutation remains inspectable.
+      await writeJson(path.join(runDir, snapshotFile), stageQuestionContext);
+      manifest.questions.latestSnapshot = snapshotFile;
+    }
+    return requiredIds;
   }
 
   function recordEvent(type, data = {}) {
@@ -1277,6 +1363,59 @@ export async function runPipeline({
     }
   }
 
+  async function finishWaiting(scout, requiredIds) {
+    const pending = questionState.questions.filter((question) => requiredIds.includes(question.id));
+    const reason = 'Required user answers are pending; the maker and all subsequent stages have not run.';
+    manifest.status = 'waiting';
+    manifest.gates.questions = {
+      status: 'waiting', passed: false, requiredPending: pending.length,
+      dependsOn: manifest.questions.requiredIds, snapshot: OUTPUTS.questions,
+    };
+    manifest.risks = pending.map((question) => `Required answer pending: ${question.title}`);
+    manifest.nextSteps = [
+      ...pending.map((question) => `decant answer ${id} ${question.id} "your answer"`),
+      `After answering the required questions, start a new child run with decant resume ${id}.`,
+    ];
+    const verification = {
+      status: 'not-run', passed: false, authorized: false,
+      checks: [{ name: 'Required question dependency', passed: false, detail: reason }],
+    };
+    const reviewer = skippedReviewer(reason);
+    const readers = {
+      version: 1, mode: 'not-run', semanticVerified: false,
+      passed: false, pass: false, status: 'pending',
+      minPass: config.readerGate.minPass, totalPersonas: 0, passedPersonas: 0,
+      failedPersonas: 0, criticalCount: 0, criticalIssues: [], personas: [],
+    };
+    const summary = `# Waiting for required answers\n\n${reason}\n\nThe task is ${plan.task}. Read-only scout and advisor work is recorded. No implementation or verification success is claimed.\n\n${pending.map((question) => `- ${question.id}: ${question.title}`).join('\n')}\n\nAnswer the questions with decant answer, then use decant resume ${id}. This frozen run will remain unchanged.`;
+    for (const stageId of ['maker', 'reviewer', 'explainer', 'reader']) {
+      const stage = stageContract(stageId);
+      manifest.stages[stageId] = {
+        id: stageId, title: stage.purpose,
+        status: stageId === 'maker' ? 'waiting' : 'skipped', enabled: stage.enabled !== false,
+        profile: stage.modelRole, model: stage.model, effort: stage.effort,
+        output: reason,
+        ...(stageId === 'maker' ? { dependsOn: requiredIds } : {}),
+      };
+    }
+    manifest.gates.verification = { status: 'not-run', passed: false };
+    manifest.gates.truth = { status: 'not-run', passed: false, problems: [reason] };
+    await writeText(path.join(runDir, OUTPUTS.maker), `WAITING: ${reason}`);
+    await writeJson(path.join(runDir, OUTPUTS.verification), verification);
+    await writeJson(path.join(runDir, OUTPUTS.reviewer), reviewer);
+    await writeText(path.join(runDir, OUTPUTS.explainer), summary);
+    await writeJson(path.join(runDir, OUTPUTS.readers), readers);
+    const reportFile = path.join(runDir, OUTPUTS.report);
+    const html = await renderRunReport(manifest, {
+      summary, verification, readers, evidence: scout.evidence, nextSteps: manifest.nextSteps,
+    }, reportFile);
+    await recordEvent('run.waiting', { requiredIds, snapshot: OUTPUTS.questions });
+    await writeQueue;
+    manifest.artifacts = await collectArtifactHashes(runDir);
+    await persist();
+    return { runDir, reportFile, manifest, readers, verification, reviewer, html };
+  }
+
   try {
     await mkdir(stateDir, { recursive: true });
     if (mutationEnabled) {
@@ -1288,6 +1427,7 @@ export async function runPipeline({
     await writeText(eventsFile, '');
     await persist();
     await recordEvent('run.started', { task: plan.task });
+    if (manifest.judgment) await writeJson(path.join(runDir, 'judgment.json'), manifest.judgment);
 
     const scoutFile = path.join(runDir, OUTPUTS.scout);
     const scoutContract = stageContract('scout');
@@ -1302,7 +1442,7 @@ export async function runPipeline({
       await recordEvent('stage.skipped', { stage: 'scout', reasonCode: 'deadline-fast-lane' });
     } else {
       await invokeStage('scout', {
-        prompt: scoutPrompt(plan.task, runDir),
+        prompt: scoutPrompt(plan.task, runDir, parentQuestionContext),
         outputFile: scoutFile,
         outputSchema: SCOUT_SCHEMA,
         search: true,
@@ -1310,6 +1450,20 @@ export async function runPipeline({
     }
     const scout = assertScout(await readJson(scoutFile));
     manifest.evidence = scout.evidence;
+    if (questionMode === 'async') {
+      // Structured questions are authoritative, including an explicitly empty
+      // array. Old scouts can only ask optional questions, at most three.
+      const questions = normalizeQuestions(scout.questions ?? scout.open_questions.slice(0, 3));
+      if (questions.length > 0) {
+        questionState = await openQuestions({ cwd: root, runId: id, questions });
+        await refreshQuestionContext();
+        await recordEvent('questions.opened', { questionIds: questions.map((question) => question.id), ...questionSummary(questionState) });
+        // Notification completes here; this callback must not await human input.
+        // Answers arrive through the separate, durable questions store.
+        if (onQuestions) await onQuestions(structuredClone(questionState));
+      }
+    }
+    await refreshQuestionContext();
     await persist();
 
     const architectFile = path.join(runDir, OUTPUTS.architect);
@@ -1355,13 +1509,23 @@ export async function runPipeline({
       });
     } else {
       await invokeStage('architect', {
-        prompt: architectPrompt(plan.task, runDir, plan.assessment),
+        prompt: architectPrompt(plan.task, runDir, plan.assessment, stageQuestionContext),
         outputFile: architectFile,
       });
     }
 
     const maker = stageContract('maker');
     const makerFile = path.join(runDir, OUTPUTS.maker);
+    const requiredIds = await refreshQuestionContext(OUTPUTS.questions);
+    manifest.gates.questions = {
+      status: requiredIds.length > 0 ? 'waiting' : 'pass',
+      passed: requiredIds.length === 0,
+      requiredPending: requiredIds.length,
+      dependsOn: manifest.questions.requiredIds,
+      snapshot: OUTPUTS.questions,
+    };
+    await recordEvent('questions.checked', { before: 'maker', ...questionSummary(questionState), requiredIds });
+    if (maker.enabled !== false && requiredIds.length > 0) return await finishWaiting(scout, requiredIds);
     if (maker.enabled === false) {
       const reason = 'SKIPPED: this request was classified as read-only.';
       await writeText(makerFile, reason);
@@ -1373,11 +1537,14 @@ export async function runPipeline({
     } else {
       try {
         await invokeStage('maker', {
-          prompt: makerPrompt(plan.task, runDir, fastLane ? {
-            fastLane: true,
-            firstArtifact: firstArtifact.relative,
-            firstArtifactDeadlineMs: firstArtifactWindowMs,
-          } : {}),
+          prompt: makerPrompt(plan.task, runDir, {
+            questionContext: stageQuestionContext,
+            ...(fastLane ? {
+              fastLane: true,
+              firstArtifact: firstArtifact.relative,
+              firstArtifactDeadlineMs: firstArtifactWindowMs,
+            } : {}),
+          }),
           outputFile: makerFile,
           sandbox: 'workspace-write',
         });
@@ -1389,6 +1556,7 @@ export async function runPipeline({
       if (firstArtifactGate && !firstArtifactGate.passed) {
         throw new Error(`first artifact did not change: ${firstArtifact.relative}`);
       }
+      manifest.stages.maker.dependsOn = manifest.questions.requiredIds;
     }
 
     const verificationFile = path.join(runDir, OUTPUTS.verification);
@@ -1462,6 +1630,7 @@ export async function runPipeline({
     await persist();
 
     const reviewer = stageContract('reviewer');
+    await refreshQuestionContext('questions.reviewer.json');
     const reviewerFile = path.join(runDir, OUTPUTS.reviewer);
     let reviewerResult;
     let truth;
@@ -1478,7 +1647,7 @@ export async function runPipeline({
     } else {
       try {
         await invokeStage('reviewer', {
-          prompt: reviewerPrompt(plan.task, runDir),
+          prompt: reviewerPrompt(plan.task, runDir, stageQuestionContext),
           outputFile: reviewerFile,
           outputSchema: REVIEWER_SCHEMA,
         });
@@ -1499,6 +1668,7 @@ export async function runPipeline({
     await persist();
 
     const explainer = stageContract('explainer');
+    await refreshQuestionContext('questions.explainer.json');
     const summaryFile = path.join(runDir, OUTPUTS.explainer);
     let summary;
     if (explainer.enabled === false) {
@@ -1519,13 +1689,13 @@ export async function runPipeline({
       await recordEvent('stage.skipped', { stage: 'explainer', reason: summary });
     } else {
       await invokeStage('explainer', {
-        prompt: explainerPrompt(plan.task, runDir),
+        prompt: explainerPrompt(plan.task, runDir, '', stageQuestionContext),
         outputFile: summaryFile,
       });
       summary = await readText(summaryFile);
     }
 
-    manifest.risks = deriveRisks(scout, reviewerResult, verification);
+    manifest.risks = deriveRisks(scout, reviewerResult, verification, questionState);
     manifest.nextSteps = deriveNextSteps(reviewerResult, verification);
     let payload = canonicalPayload({
       task: plan.task,
@@ -1698,7 +1868,7 @@ export async function runPipeline({
         });
         await invokeStage('explainer', {
           stageId: `explainer-revision-${round}`,
-          prompt: explainerPrompt(plan.task, runDir, feedbackFile),
+          prompt: explainerPrompt(plan.task, runDir, feedbackFile, stageQuestionContext),
           outputFile: summaryFile,
         });
         summary = await readText(summaryFile);
