@@ -1,5 +1,11 @@
 # Decant
 
+<!-- PROJECT-PRESENTATION:START -->
+<a href="https://github.com/minwoo19930301/decant"><img src=".github/project-cover.svg" alt="Decant" width="960"></a>
+
+[![QUICK START](https://img.shields.io/badge/QUICK%20START-374151?style=for-the-badge)](#what-one-real-run-costs) [![SOURCE](https://img.shields.io/badge/SOURCE-444444?style=for-the-badge)](https://github.com/minwoo19930301/decant)
+<!-- PROJECT-PRESENTATION:END -->
+
 > Pour off what coding-agent harnesses do well. Leave the sediment.
 
 Decant runs a coding task through the agent CLI you already have, and leaves you
