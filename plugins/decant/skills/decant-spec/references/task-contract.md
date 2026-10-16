@@ -33,8 +33,11 @@ unresolved:
 
 - A specific original request may confirm revision 1 without a redundant
   question when evidence does not expose a material choice.
-- If user input selected scope, authority, or an irreversible trade-off,
-  restate the contract and obtain confirmation before implementation.
+- A reversible choice uses async question mode: state the question and the
+  assumption, record `safe_assumption`, and continue. Do not wait.
+- If the choice is irreversible — deployment, production data, deletion,
+  sending, push, a pull request, public posting, or a large spend — restate
+  the contract and wait for confirmation before that action.
 - `status: unresolved`, a `blocker` decision, or a non-empty material
   `unresolved` list prevents a build handoff.
 - A material change creates revision N+1 and sets `supersedes` to the prior

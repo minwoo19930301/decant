@@ -14,8 +14,9 @@ test('Decant spec skill carries a bounded confirmed-contract workflow', async ()
   ]);
 
   for (const pattern of [
-    /at most three questions/i,
-    /one question at a time/i,
+    /async question mode/i,
+    /답이 없으면/,
+    /reversible assumption/i,
     /user_decision/,
     /repo_fact/,
     /safe_assumption/,

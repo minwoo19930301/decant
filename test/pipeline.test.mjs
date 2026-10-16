@@ -3,7 +3,9 @@ import { mkdir, mkdtemp, open, symlink } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { buildCatalog } from '../src/catalog.mjs';
 import { DEFAULT_CONFIG } from '../src/config.mjs';
+import { GROK_47_CATALOG_ENTRY, GROK_47_EFFORTS } from '../src/providers/grok.mjs';
 import {
   acquireWorkspaceLock,
   buildRunPlan,
@@ -36,6 +38,23 @@ test('buildRunPlan counts deterministic and live reader calls', () => {
   assert.equal(live.callEstimate.maximum, 26);
   assert.equal(deterministic.stages.find((stage) => stage.id === 'architect').effort, 'max');
   assert.equal(deterministic.stages.find((stage) => stage.id === 'architect').activation, 'conditional');
+});
+
+test('a Grok 4.7 plan uses every advertised effort and snaps architect max to xhigh', () => {
+  const grokCatalog = buildCatalog([GROK_47_CATALOG_ENTRY]);
+  const route = routeTask(task, { quorum: 9 });
+  const plan = buildRunPlan({ task, route, catalog: grokCatalog, config: DEFAULT_CONFIG });
+  const efforts = Object.fromEntries(plan.stages.map((stage) => [stage.id, stage.effort]));
+  assert.equal(efforts.scout, 'low');
+  assert.equal(efforts.architect, 'xhigh');
+  assert.equal(efforts.maker, 'medium');
+  assert.equal(efforts.reviewer, 'high');
+  assert.equal(efforts.explainer, 'low');
+  assert.equal(efforts.reader, 'low');
+  assert.deepEqual([...new Set(Object.values(efforts))].sort(), [...GROK_47_EFFORTS].sort());
+  const architect = plan.stages.find((stage) => stage.id === 'architect');
+  assert.equal(architect.requestedEffort, 'max');
+  assert.equal(architect.effortReason, 'effort-menu');
 });
 
 test('fast-lane plans put the maker first, cap effort, and avoid live reader fanout', () => {

@@ -5,6 +5,7 @@ import {
   buildCatalog,
   discoverCatalog,
   parseModelCatalog,
+  snapEffort,
 } from "../src/catalog.mjs";
 
 const FIXTURE = {
@@ -78,6 +79,18 @@ test("explicit role overrides win and validate supported effort", () => {
   assert.throws(() => buildCatalog(FIXTURE, {
     overrides: { economy: { model: "gpt-luna-mini", effort: "max" } },
   }), /does not support reasoning effort max/);
+});
+
+test("snapEffort keeps advertised levels and lowers max to the Grok 4.7 ceiling", () => {
+  const menu = ["low", "medium", "high", "xhigh"];
+  assert.equal(snapEffort("low", menu), "low");
+  assert.equal(snapEffort("medium", menu), "medium");
+  assert.equal(snapEffort("high", menu), "high");
+  assert.equal(snapEffort("xhigh", menu), "xhigh");
+  assert.equal(snapEffort("max", menu), "xhigh");
+  assert.equal(snapEffort("ultra", menu), "xhigh");
+  assert.equal(snapEffort("max", []), "max");
+  assert.throws(() => snapEffort("deep", menu), /unknown effort level: deep/);
 });
 
 test("discoverCatalog injects execution and passes the configured invocation", async () => {

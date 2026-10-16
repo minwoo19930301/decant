@@ -16,6 +16,7 @@ import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
 
+import { snapEffort } from './catalog.mjs';
 import { mapPool, runVerification } from './executor.mjs';
 import { DEFAULT_PROVIDER, resolveProvider } from './providers/index.mjs';
 import {
@@ -97,13 +98,19 @@ function stageSelection(stage, config, catalog) {
   const requested = config.effort?.[stage.id] ?? stage.effort ?? selected.effort;
   const supported = selected.supportedEfforts ?? [];
   const capped = effortAtOrBelow(requested, stage.effortCap, supported);
-  const effort = capped ?? selected.effort ?? supported[0];
+  const snapped = capped ?? snapEffort(requested, supported);
+  const effort = snapped ?? selected.effort ?? supported[0];
+  const snappedAway = !stage.effortCap && effort !== requested;
   return {
     ...selected,
     effort,
-    ...(stage.effortCap ? {
+    ...(stage.effortCap || snappedAway ? {
       requestedEffort: requested,
-      effortReason: effort !== requested ? stage.reasonCode ?? 'effort-cap' : null,
+      effortReason: stage.effortCap && effort !== requested
+        ? stage.reasonCode ?? 'effort-cap'
+        : snappedAway
+          ? 'effort-menu'
+          : null,
     } : {}),
   };
 }

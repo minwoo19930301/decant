@@ -27,6 +27,7 @@
     "codex",
     "claude-code",
     "kiro",
+    "grok",
     "agent-skills",
     "model-routing",
     "invocation-ceiling",

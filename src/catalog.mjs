@@ -11,11 +11,37 @@ const ROLE_HINTS = Object.freeze({
   economy: /economy|economic|fast|affordable|cheap|small|mini|cost[- ]?efficient|light/i,
 });
 
+export const EFFORT_RANK = Object.freeze(["low", "medium", "high", "xhigh", "max", "ultra"]);
+
 const EFFORT_PREFERENCES = Object.freeze({
   frontier: ["max", "ultra", "xhigh", "high", "medium", "low"],
   balanced: ["medium", "high", "low", "xhigh", "max", "ultra"],
   economy: ["low", "medium", "high", "xhigh", "max", "ultra"],
 });
+
+/**
+ * Map a requested effort onto a model's menu.
+ *
+ * An empty menu means the provider did not advertise levels, so the request
+ * passes through. A level the menu lacks becomes the nearest advertised level
+ * at or below it. `max` and `ultra` on Grok 4.7 therefore become `xhigh`.
+ * A request below every advertised level uses the lowest one.
+ */
+export function snapEffort(requested, supported = []) {
+  if (!requested) return null;
+  const menu = [...new Set((supported ?? []).filter((level) => EFFORT_RANK.includes(level)))];
+  if (menu.length === 0) return requested;
+  if (menu.includes(requested)) return requested;
+  const requestedIndex = EFFORT_RANK.indexOf(requested);
+  if (requestedIndex === -1) {
+    throw new RangeError(`unknown effort level: ${requested}`);
+  }
+  const atOrBelow = menu
+    .filter((level) => EFFORT_RANK.indexOf(level) <= requestedIndex)
+    .sort((left, right) => EFFORT_RANK.indexOf(right) - EFFORT_RANK.indexOf(left));
+  if (atOrBelow.length > 0) return atOrBelow[0];
+  return [...menu].sort((left, right) => EFFORT_RANK.indexOf(left) - EFFORT_RANK.indexOf(right))[0];
+}
 
 function asJson(value) {
   if (typeof value !== "string") return value;

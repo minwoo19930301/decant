@@ -78,7 +78,7 @@ test('doctor reports a structured FAIL when Codex is missing instead of crashing
   assert.equal(await main(['doctor'], context), 1);
   const text = output.read();
   assert.match(text, /^FAIL Node /m);
-  assert.match(text, /^INFO provider codex \(Codex CLI\); available: codex, kiro$/m);
+  assert.match(text, /^INFO provider codex \(Codex CLI\); available: codex, kiro, grok$/m);
   assert.match(text, /FAIL codex codex not found on PATH/);
   assert.match(text, /FAIL codex not found on PATH/);
   assert.doesNotMatch(text, /spawn codex ENOENT/);

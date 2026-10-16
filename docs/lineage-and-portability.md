@@ -2,6 +2,14 @@
 
 조사 기준일: 2026-07-13
 
+## 2026-10-17
+
+`provider: "grok"`가 stage 실행기로 추가됐다. 모델은 `grok-4.7`이고, 광고된
+reasoning effort `low` / `medium` / `high` / `xhigh`를 모두 라우팅에 쓴다.
+`max`와 `ultra`는 메뉴에 없으므로 `xhigh`로 내린다. 샌드박스는 fail-open이라
+read-only stage도 커널이 쓰기를 막았다고 보고하지 않는다. Reader-10을 Grok으로
+끝낸 종단간 검증은 아직 없다. 아래 2026-07 문장은 그 날짜의 상태다.
+
 ## 먼저 읽을 결론
 
 현재 Decant의 고정 `v0.1.1` 릴리스는 **Relay10 이름으로

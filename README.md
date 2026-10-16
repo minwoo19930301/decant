@@ -132,7 +132,7 @@ short list of other people's good ideas, implemented small.
 | Split planning from editing, and use a different model for each | aider's architect/editor mode | `scout` → `architect` → `maker` are separate stages with separate models and separate permissions |
 | Plan read-only; only one step may touch files | OpenCode's plan/build split | Only `maker` gets write access. Every other stage is read-only, enforced by the backend |
 | Write the spec before the code, but don't drown in it | Spec Kit, OpenSpec | `decant-spec` records outcome, non-goals, acceptance, rollback — one page, not a document hierarchy |
-| Ask the human a few pointed questions before starting | Ouroboros | `decant-spec` asks at most three, one at a time, and skips them for small clear changes |
+| Ask the human a few pointed questions before starting | Ouroboros | `decant-spec` writes the question and a reversible assumption, then continues; it waits only for an irreversible action |
 | Small vertical slices with tests | Superpowers | `decant-build` prefers bounded slices; test commands are yours, listed literally, never guessed |
 | Reproduce and localise before fixing | systematic-debugging practice | `decant-debug` separates diagnosis from permission to fix, and forces a rethink after three failures |
 | Review a frozen baseline, not a moving target | separate spec/quality review | `decant-review` is read-only and reports findings with evidence and severity |
@@ -148,7 +148,7 @@ schedulers, a TUI. Full lineage with links and licence notes:
 
 ## Start here
 
-You need Node 20+ and one agent CLI on your `PATH` — `codex` or `kiro-cli`.
+You need Node 20+ and one agent CLI on your `PATH` — `codex`, `kiro-cli`, or `grok`.
 
 ```bash
 git clone https://github.com/minwoo19930301/decant.git
@@ -260,7 +260,21 @@ Put this in `decant.config.json`:
 { "version": 1, "provider": "kiro" }
 ```
 
-`codex` is the default. `decant doctor` confirms the switch.
+`codex` is the default. `kiro` and `grok` are the other two. `decant doctor` confirms the switch.
+
+**…run stages on Grok 4.7, using every advertised effort?**
+
+```json
+{ "version": 1, "provider": "grok" }
+```
+
+Grok 4.7 is one model with four reasoning efforts: `low`, `medium`, `high`
+(the model default), and `xhigh`. A default route uses all four: scout,
+explainer, and reader at `low`; maker at `medium`; reviewer at `high`;
+architect at `xhigh`. Config may still say `max` or `ultra`. Those are not on
+this model's menu, so Decant snaps them down to `xhigh` and records
+`effort-menu`. The Grok sandbox is fail-open, and `doctor` reports that
+instead of calling the stage read-only in the kernel sense.
 
 **…pin which model each role uses?**
 

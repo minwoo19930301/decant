@@ -4,6 +4,12 @@
 
 ### Added
 
+- Grok CLI is a stage provider. `provider: "grok"` runs `grok` and pins Grok 4.7
+  to the four efforts it advertises: `low`, `medium`, `high`, and `xhigh`.
+  A default route uses every one of them. `max` and `ultra` snap down to
+  `xhigh` and the plan records `effort-menu`. The sandbox capability is
+  `fail-open`; plan mode is requested for read-only stages and is not a kernel
+  guarantee. Live Reader-10 through Grok is still unverified.
 - Async questions in the CLI pipeline and host skills. The scout can post up to
   three structured questions; independent planning continues while required
   answers gate the maker. Legacy `open_questions` remain compatible and optional.

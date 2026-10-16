@@ -13,6 +13,7 @@ Coordinate the other Decant skills without turning every request into a large pr
 2. Inspect the repository and current git state before proposing edits.
 3. If the CLI is available, run `decant doctor` and preview routing with `decant route "<task>" --json`.
 4. Treat `decant run "<task>" --dry-run` as a preview. Run a mutating pipeline only when the user authorized implementation.
+5. When a decision is still open, follow `decant-spec` async question mode: write the question and a reversible assumption, then continue. Wait only for an irreversible action.
 
 This skill helps choose a workflow. It does not change the model of the host agent's current task, whether that host is Codex or Claude Code, and does not make unsupported providers available.
 

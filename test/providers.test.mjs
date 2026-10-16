@@ -14,10 +14,17 @@ import {
 } from '../src/providers/contract.mjs';
 import { discoverKiroModels, kiroArgs, kiroProvider } from '../src/providers/kiro.mjs';
 import { codexProvider } from '../src/providers/codex.mjs';
+import {
+  GROK_47_EFFORTS,
+  discoverGrokModels,
+  grokArgs,
+  grokProvider,
+  parseGrokModelIds,
+} from '../src/providers/grok.mjs';
 import { DEFAULT_PROVIDER, PROVIDER_IDS, resolveProvider } from '../src/providers/index.mjs';
 
 test('every registered provider satisfies the stage contract', () => {
-  assert.deepEqual(PROVIDER_IDS, ['codex', 'kiro']);
+  assert.deepEqual(PROVIDER_IDS, ['codex', 'kiro', 'grok']);
   for (const id of PROVIDER_IDS) {
     const provider = assertProvider(resolveProvider(id));
     assert.equal(provider.id, id);
@@ -25,7 +32,7 @@ test('every registered provider satisfies the stage contract', () => {
     assert.ok(provider.capabilities.sandbox);
   }
   assert.equal(resolveProvider(), resolveProvider(DEFAULT_PROVIDER));
-  assert.throws(() => resolveProvider('anthropic'), /supported: codex, kiro/);
+  assert.throws(() => resolveProvider('anthropic'), /supported: codex, kiro, grok/);
 });
 
 test('providers declare what they can and cannot enforce', () => {
@@ -36,6 +43,8 @@ test('providers declare what they can and cannot enforce', () => {
   assert.equal(codexProvider.capabilities.sandbox, 'native');
   assert.equal(kiroProvider.capabilities.outputSchema, 'prompted');
   assert.equal(kiroProvider.capabilities.sandbox, 'tool-allowlist');
+  assert.equal(grokProvider.capabilities.outputSchema, 'native');
+  assert.equal(grokProvider.capabilities.sandbox, 'fail-open');
 });
 
 test('sandbox levels map to tool grants, and unknown levels are refused', () => {
@@ -228,4 +237,83 @@ test('a nonzero stage exit becomes an error carrying the captured result', async
       return true;
     },
   );
+});
+
+test('grok model listing keeps every Grok 4.7 effort on that model', () => {
+  assert.deepEqual(
+    parseGrokModelIds('Default model: grok-4.7\n\nAvailable models:\n  * grok-4.7 (default)\n'),
+    ['grok-4.7'],
+  );
+  assert.deepEqual([...GROK_47_EFFORTS], ['low', 'medium', 'high', 'xhigh']);
+});
+
+test('grok passes each advertised effort and snaps max down to xhigh', () => {
+  for (const effort of GROK_47_EFFORTS) {
+    const args = grokArgs({
+      model: 'grok-4.7',
+      effort,
+      sandbox: 'read-only',
+      promptFile: 'prompt.txt',
+    });
+    assert.ok(args.includes('--reasoning-effort'));
+    assert.equal(args[args.indexOf('--reasoning-effort') + 1], effort);
+  }
+  const snapped = grokArgs({
+    model: 'auto',
+    effort: 'max',
+    sandbox: 'workspace-write',
+    search: true,
+    promptFile: 'prompt.txt',
+    schemaText: '{"type":"object"}',
+  });
+  assert.equal(snapped[snapped.indexOf('--model') + 1], 'grok-4.7');
+  assert.equal(snapped[snapped.indexOf('--reasoning-effort') + 1], 'xhigh');
+  assert.ok(snapped.includes('--permission-mode'));
+  assert.equal(snapped[snapped.indexOf('--permission-mode') + 1], 'acceptEdits');
+  assert.ok(!snapped.includes('--disable-web-search'));
+  assert.ok(snapped.includes('--json-schema'));
+  assert.throws(
+    () => grokArgs({ model: 'grok-4.7', sandbox: 'danger-full-access', promptFile: 'p' }),
+    /does not support sandbox danger-full-access/,
+  );
+});
+
+test('grok discovery attaches the full effort menu and a stage writes the JSON text', async (t) => {
+  const ids = await discoverGrokModels(async () => ({
+    stdout: 'Available models:\n  * grok-4.7 (default)\n',
+    stderr: '',
+  }));
+  assert.deepEqual(ids, ['grok-4.7']);
+  const catalog = await grokProvider.discoverCatalog({
+    execute: async () => ({
+      stdout: 'Available models:\n  * grok-4.7 (default)\n',
+      stderr: '',
+    }),
+  });
+  assert.deepEqual(catalog.roles.frontier.supportedEfforts, [...GROK_47_EFFORTS]);
+  assert.equal(catalog.roles.frontier.effort, 'xhigh');
+  assert.equal(catalog.roles.balanced.effort, 'medium');
+  assert.equal(catalog.roles.economy.effort, 'low');
+
+  const sandbox = await mkdtemp(path.join(tmpdir(), 'decant-grok-'));
+  t.after(() => rm(sandbox, { recursive: true, force: true }));
+  const outputFile = path.join(sandbox, 'stage.md');
+  let seen;
+  await grokProvider.runStage({
+    prompt: 'say pong',
+    cwd: sandbox,
+    model: 'grok-4.7',
+    effort: 'low',
+    sandbox: 'read-only',
+    outputFile,
+    timeoutMs: 1_000,
+    execute: async (command, args) => {
+      seen = { command, args };
+      return { code: 0, stdout: '{"text":"pong","stopReason":"end_turn"}\n', stderr: '' };
+    },
+  });
+  assert.equal(seen.command, 'grok');
+  assert.equal(seen.args[seen.args.indexOf('--reasoning-effort') + 1], 'low');
+  assert.equal(seen.args[seen.args.indexOf('--permission-mode') + 1], 'plan');
+  assert.equal(await readFile(outputFile, 'utf8'), 'pong\n');
 });

@@ -57,10 +57,8 @@
     },
     "version": { "const": 1 },
     "provider": {
-      "enum": [
-        "codex",
-        "kiro"
-      ]
+      "enum": ["codex", "kiro", "grok"],
+      "description": "Closed provider set. grok launches the grok CLI and uses Grok 4.7 efforts low, medium, high, and xhigh."
     },
     "questions": {
       "type": "object",
