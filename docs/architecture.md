@@ -1,9 +1,10 @@
 # Decant architecture
 
-Decant is a thin subprocess harness around the installed Codex CLI, built with
-zero third-party npm runtime dependencies. It does not replace the agent
-runtime, provide a second terminal interface, or maintain a hidden memory
-database. A run writes inspectable artifacts beneath `.decant/runs/<id>/`.
+Decant is a thin subprocess harness around an installed coding-agent CLI
+(`codex`, `kiro-cli`, or `grok`), built with zero third-party npm runtime
+dependencies. It does not replace the agent runtime, provide a second terminal
+interface, or maintain a hidden memory database. A run writes inspectable
+artifacts beneath `.decant/runs/<id>/`.
 
 ## Stage backends
 
@@ -16,27 +17,33 @@ provider. `0.2` replaces that with one contract in `src/providers/contract.mjs`:
                outputFile, outputSchema, timeoutMs })
 
 plus `discoverCatalog()`. `src/pipeline.mjs` names no CLI; it resolves whichever
-provider `config.provider` selected. Two implementations ship:
+provider `config.provider` selected. `0.3` adds `grok`. Three implementations ship:
 
 - `codex` — native `--output-last-message` and `--output-schema`, kernel
   sandbox, `codex debug models` discovery.
 - `kiro` — Kiro CLI. No final-message channel and no schema flag, so the adapter
   fences the answer with sentinels and extracts it from the transcript, and
   carries the JSON schema in the prompt. Isolation is a tool allowlist.
+- `grok` — Grok CLI, pinned to the Grok 4.7 effort menu (`low`, `medium`,
+  `high`, `xhigh`). `max` and `ultra` snap down to `xhigh`. Read-only stages
+  request plan mode. The sandbox capability is `fail-open`, so that request is
+  not a kernel guarantee.
 
 The abstraction's job is **not** to make backends look alike. Providers declare
 capabilities (`outputSchema: 'native' | 'prompted'`,
-`sandbox: 'native' | 'tool-allowlist'`) and those declarations are recorded in
-the run manifest, so a report cannot imply a guarantee the backend never made. A
-prompted schema cannot refuse malformed output; a tool allowlist is not a
-kernel-enforced sandbox.
+`sandbox: 'native' | 'tool-allowlist' | 'fail-open'`) and those declarations
+are recorded in the run manifest, so a report cannot imply a guarantee the
+backend never made. A prompted schema cannot refuse malformed output; a tool
+allowlist is not a kernel-enforced sandbox, and Grok's fail-open sandbox is
+not one either.
 
 The provider set is closed in code. Config selects a provider by id but cannot
 supply an executable, for the same reason it cannot replace the model-catalog
 command: a checked-in project file must not decide which binary runs.
 
 Not implemented: direct Anthropic, OpenAI, xAI, or Gemini HTTP adapters, and
-mixing providers within one run. The contract assumes a CLI subprocess that can
+mixing providers within one run. The `grok` provider launches the Grok CLI; it
+is not an HTTP adapter. The contract assumes a CLI subprocess that can
 produce a final answer, so an HTTP provider would need to supply the workspace
 file tools, shell execution, approval behavior, search, and tool-call loop that
 a coding-agent CLI already provides.
@@ -134,15 +141,17 @@ original machine, toolchain, hooks, credentials, or remote model service.
 
 ## Process and safety boundary
 
-Scout, architect, reviewer, explainer, and reader stages request read-only Codex
-sandboxing. The maker requests workspace-write. Verification uses literal argv
-without a shell, captures bounded output, and terminates the spawned process
-group on POSIX timeout. Users must still choose verification executables they
-trust.
+Scout, architect, reviewer, explainer, and reader stages request the selected
+provider's read-only mode: a kernel sandbox on Codex, a tool allowlist on Kiro,
+and plan mode on Grok. Grok's sandbox is fail-open, so plan mode is a request
+rather than a kernel guarantee. The maker requests workspace-write. Verification
+uses literal argv without a shell, captures bounded output, and terminates the
+spawned process group on POSIX timeout. Users must still choose verification
+executables they trust.
 
 Decant prompts do not authorize Git push, deployment, merge, purchase, or
 other external publication. The effective boundary also depends on the local
-Codex installation, configuration, hooks, MCP servers, credentials, and
+provider installation, configuration, hooks, MCP servers, credentials, and
 operating system; Decant cannot independently constrain capabilities supplied
 outside its subprocess arguments.
 

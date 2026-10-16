@@ -63,11 +63,14 @@ Decant does *not* make, so nobody has to discover it the hard way.
 
 ## Backends
 
-- Two ship: `codex` and `kiro`. They are not interchangeable.
+- Three ship: `codex`, `kiro`, and `grok`. They are not interchangeable.
   - Codex enforces a JSON schema (`--output-schema`) and a kernel sandbox.
   - The Kiro adapter asks for the schema in the prompt and extracts the answer
     from the transcript; it cannot refuse malformed output. Isolation is a tool
     allowlist, which is weaker than a sandbox.
+  - Grok advertises a native JSON schema and requests plan mode for read-only
+    stages. Its sandbox capability is `fail-open`: plan mode is not a kernel
+    guarantee. On Grok 4.7, `max` and `ultra` snap down to `xhigh`.
   - `doctor` prints which you have; `run.json` records it.
 - Providers cannot be mixed within one run.
 - Direct HTTP adapters for Anthropic, OpenAI, xAI, or Gemini are not included.
@@ -78,7 +81,10 @@ Decant does *not* make, so nobody has to discover it the hard way.
 
 ## Execution
 
-- A failed stage ends the run. No retry, no resume, no checkpoint, no rollback.
+- A failed stage ends the run. There is no retry, no in-place checkpoint, and
+  no rollback.
+- `decant resume` starts a new budgeted child run from a waiting or completed
+  parent. It does not continue a failed stage at its last instruction.
 - There is no automatic escalation after a failure.
 - The only evidence-time decision point is the architect check after the scout.
 - The workspace lock is per-repository and best-effort by design; see
@@ -96,8 +102,9 @@ Decant does *not* make, so nobody has to discover it the hard way.
 
 ## Release status
 
-- The last tagged release is `v0.1.1`, made under the project's first name
-  **Relay10**. `DisciplinedRun` and `Rein` were unreleased intermediate names.
+- The last tagged release is `v0.2.0`. `v0.1.1` was tagged under the project's
+  first name **Relay10**. `DisciplinedRun` and `Rein` were unreleased
+  intermediate names. Package version `0.3.0` on `main` is not tagged.
 - Nothing has been published to npm under any of those names.
 - The `v0.1.1` evidence under `docs/launch-*` deliberately keeps the old names so
   its recorded hashes still verify. `verify:launch`, `report:launch`, and
