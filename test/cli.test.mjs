@@ -15,6 +15,7 @@ import {
   exitCodeForStatus,
   formatCliError,
   main,
+  nodeVersionSupported,
   parseCommandLine,
   requireVerificationOptIn,
   resolveReplayOutput,
@@ -37,6 +38,13 @@ function captureOutput() {
     read: () => value,
   };
 }
+
+test('nodeVersionSupported follows the Node 20 engine requirement', () => {
+  assert.equal(nodeVersionSupported('v20.0.0'), true);
+  assert.equal(nodeVersionSupported('22.14.0'), true);
+  assert.equal(nodeVersionSupported('v18.20.0'), false);
+  assert.equal(nodeVersionSupported('not-a-version'), false);
+});
 
 test('formatCliError turns missing executables into actionable PATH guidance', () => {
   const missing = Object.assign(new Error('spawn codex ENOENT'), {
@@ -77,11 +85,36 @@ test('doctor reports a structured FAIL when Codex is missing instead of crashing
 
   assert.equal(await main(['doctor'], context), 1);
   const text = output.read();
-  assert.match(text, /^FAIL Node /m);
+  assert.match(text, /^PASS Node v\d+/m);
   assert.match(text, /^INFO provider codex \(Codex CLI\); available: codex, kiro, grok$/m);
   assert.match(text, /FAIL codex codex not found on PATH/);
-  assert.match(text, /FAIL codex not found on PATH/);
+  assert.equal(text.match(/not found on PATH/g).length, 1);
   assert.doesNotMatch(text, /spawn codex ENOENT/);
+});
+
+test('doctor reports an invalid config without probing a fallback provider', async () => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'decant-doctor-config-'));
+  await writeFile(path.join(cwd, 'decant.config.json'), '{"version":1,"provider":"claude"}\n');
+  const output = captureOutput();
+  let probed = false;
+  const code = await main(['doctor'], {
+    cwd,
+    stdout: output.stream,
+    spawnCaptureImpl: async () => {
+      probed = true;
+      throw new Error('should not probe a provider');
+    },
+    configAndCatalogImpl: async () => {
+      probed = true;
+      throw new Error('should not discover a catalog');
+    },
+  });
+  const text = output.read();
+  assert.equal(code, 1);
+  assert.equal(probed, false);
+  assert.match(text, /^PASS Node /m);
+  assert.match(text, /FAIL Invalid Decant config at provider: must be one of: codex, kiro, grok/);
+  assert.doesNotMatch(text, /provider codex/);
 });
 
 test('doctor --json stays parseable when Codex spawn fails', async () => {

@@ -71,6 +71,12 @@ Run artifacts: .decant/runs/<run-id>/
 
 export const RUN_ID_PATTERN = /^\d{8}T\d{9}Z-[a-z0-9]{8}$/i;
 
+/** Node 20+ is the supported runtime. Doctor reports this check on its own. */
+export function nodeVersionSupported(version = process.versions.node) {
+  const major = Number(String(version).replace(/^v/, '').split('.')[0]);
+  return Number.isInteger(major) && major >= 20;
+}
+
 /** Human-readable CLI error for missing executables and other failures. */
 export function formatCliError(error) {
   const message = error?.message || String(error);
@@ -521,7 +527,31 @@ export async function main(argv = process.argv.slice(2), context = {}) {
       selected = resolveProvider(doctorConfig.provider ?? DEFAULT_PROVIDER);
     } catch (error) {
       selectedError = formatCliError(error);
-      selected = resolveProvider(DEFAULT_PROVIDER);
+    }
+    if (!selected) {
+      const nodeOk = nodeVersionSupported();
+      const result = {
+        ok: false,
+        node: process.version,
+        provider: null,
+        judgment: {
+          provider: 'jev',
+          enabledBy: '--jev',
+          keyConfigured: Boolean(process.env.TYPESAFE_API_KEY?.trim()),
+          model: DEFAULT_CONFIG.judgment.model,
+          timeoutMs: DEFAULT_CONFIG.judgment.timeoutMs,
+        },
+        backend: null,
+        config: CONFIG_FILENAME,
+        error: selectedError,
+      };
+      if (flags.json) stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      else {
+        stdout.write(`${nodeOk ? 'PASS' : 'FAIL'} Node ${result.node}\n`);
+        stdout.write(`INFO Jev ${result.judgment.model}: ${result.judgment.keyConfigured ? 'key configured' : 'TYPESAFE_API_KEY missing'}; opt in with --jev\n`);
+        stdout.write(`FAIL ${result.error}\n`);
+      }
+      return 1;
     }
     let backend;
     let backendSpawnError;
@@ -545,8 +575,9 @@ export async function main(argv = process.argv.slice(2), context = {}) {
     const backendDetail = backend.stdout.trim()
       || backend.stderr.trim()
       || (backendSpawnError ? formatCliError(backendSpawnError) : `unknown ${selected.displayName} failure`);
+    const nodeOk = nodeVersionSupported();
     const result = {
-      ok: Number(process.versions.node.split('.')[0]) >= 20
+      ok: nodeOk
         && backend.code === 0
         && !catalogError
         && !selectedError,
@@ -570,7 +601,7 @@ export async function main(argv = process.argv.slice(2), context = {}) {
     };
     if (flags.json) stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     else {
-      stdout.write(`${result.ok ? 'PASS' : 'FAIL'} Node ${result.node}\n`);
+      stdout.write(`${nodeOk ? 'PASS' : 'FAIL'} Node ${result.node}\n`);
       stdout.write(`INFO provider ${result.provider.id} (${result.provider.displayName}); available: ${PROVIDER_IDS.join(', ')}\n`);
       stdout.write(`INFO sandbox=${result.provider.capabilities.sandbox} outputSchema=${result.provider.capabilities.outputSchema}\n`);
       stdout.write(`${backend.code === 0 ? 'PASS' : 'FAIL'} ${result.provider.executable} ${result.backend}\n`);
@@ -578,7 +609,9 @@ export async function main(argv = process.argv.slice(2), context = {}) {
         stdout.write(`PASS ${role}: ${selectedRole.model}/${selectedRole.effort}\n`);
       }
       stdout.write(`INFO Jev ${result.judgment.model}: ${result.judgment.keyConfigured ? 'key configured' : 'TYPESAFE_API_KEY missing'}; opt in with --jev\n`);
-      if (result.error) stdout.write(`FAIL ${result.error}\n`);
+      // Catalog discovery often fails for the same missing binary the version
+      // probe already reported. Printing it twice looks like two problems.
+      if (result.error && result.error !== backendDetail) stdout.write(`FAIL ${result.error}\n`);
     }
     return result.ok ? 0 : 1;
   }
