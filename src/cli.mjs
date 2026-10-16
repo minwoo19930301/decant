@@ -22,7 +22,7 @@ import { discoverCatalog } from './catalog.mjs';
 import { DEFAULT_PROVIDER, PROVIDER_IDS, resolveProvider } from './providers/index.mjs';
 import { CONFIG_FILENAME, DEFAULT_CONFIG, loadConfig } from './config.mjs';
 import { spawnCapture } from './executor.mjs';
-import { routeTask, routeWithJudgment } from './router.mjs';
+import { routeTask, routeWithJudgment, validateRoutingFlags } from './router.mjs';
 import { judgeTask } from './jev.mjs';
 import { readQuestions, answerQuestion, questionSummary } from './questions.mjs';
 import { assessReviewer, REVIEWER_SCHEMA } from './pipeline.mjs';
@@ -245,6 +245,24 @@ export function parseCommandLine(argv) {
     throw new Error(`${command} accepts at most ${spec.maxPositionals} positional argument`);
   }
   return { command, positionals, flags };
+}
+
+function assertRunnableFlags(flags) {
+  if (flags.questionMode !== undefined && !['async', 'off'].includes(flags.questionMode)) {
+    throw new Error('question-mode must be async or off');
+  }
+  if (flags.budgetCalls !== undefined) {
+    const budget = Number(flags.budgetCalls);
+    if (!Number.isInteger(budget)) {
+      throw new Error(`Model-call budget must be an integer: ${flags.budgetCalls}`);
+    }
+    if (budget < 1) throw new Error(`Model-call budget must be positive: ${flags.budgetCalls}`);
+  }
+  validateRoutingFlags({
+    lane: flags.lane,
+    timeBudgetMinutes: flags.timeBudgetMinutes,
+    firstArtifact: flags.firstArtifact,
+  });
 }
 
 function routeOptions(config, flags = {}) {
@@ -617,6 +635,7 @@ export async function main(argv = process.argv.slice(2), context = {}) {
   }
 
   if (command === 'route' || command === 'run' || command === 'resume') {
+    assertRunnableFlags(flags);
     let task = positionals.join(' ').trim();
     let questionContext;
     const pipeline = await pipelineModule(context.pipeline);

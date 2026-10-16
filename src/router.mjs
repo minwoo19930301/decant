@@ -180,13 +180,34 @@ function primaryArtifact(value) {
   return cleaned;
 }
 
-function lanePolicy(assessment, options) {
+/**
+ * Check lane, time budget, and first-artifact flags before any model catalog
+ * lookup. Safety eligibility still depends on the assessed task and stays in
+ * lanePolicy.
+ */
+export function validateRoutingFlags(options = {}) {
+  routingFlagSyntax(options);
+}
+
+function routingFlagSyntax(options) {
   const requestedLane = options.lane ?? "auto";
   if (!LANES.includes(requestedLane)) {
     throw new RangeError(`lane must be one of: ${LANES.join(", ")}`);
   }
   const minutes = timeBudgetMinutes(options.timeBudgetMinutes);
   const firstArtifact = primaryArtifact(options.firstArtifact);
+  if (requestedLane === "fast") {
+    if (minutes === null) throw new RangeError("fast lane requires timeBudgetMinutes");
+    if (minutes > AUTO_FAST_MAX_MINUTES) {
+      throw new RangeError(`fast lane requires timeBudgetMinutes no greater than ${AUTO_FAST_MAX_MINUTES}`);
+    }
+    if (!firstArtifact) throw new RangeError("fast lane requires firstArtifact");
+  }
+  return { requestedLane, minutes, firstArtifact };
+}
+
+function lanePolicy(assessment, options) {
+  const { requestedLane, minutes, firstArtifact } = routingFlagSyntax(options);
   const safeForFast = !assessment.readOnly
     && assessment.risk <= 1
     && assessment.blastRadius <= 1
@@ -194,11 +215,6 @@ function lanePolicy(assessment, options) {
     && assessment.verifiability >= 2;
 
   if (requestedLane === "fast") {
-    if (minutes === null) throw new RangeError("fast lane requires timeBudgetMinutes");
-    if (minutes > AUTO_FAST_MAX_MINUTES) {
-      throw new RangeError(`fast lane requires timeBudgetMinutes no greater than ${AUTO_FAST_MAX_MINUTES}`);
-    }
-    if (!firstArtifact) throw new RangeError("fast lane requires firstArtifact");
     if (!safeForFast) {
       throw new RangeError("fast lane is unavailable for this task's safety profile; use the full lane or narrow the task");
     }
