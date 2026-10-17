@@ -126,6 +126,7 @@ test('a required pending answer produces a frozen waiting run and releases the m
   assert.equal(result.manifest.error, undefined);
   assert.equal(result.manifest.questions.requiredPending, 1);
   assert.deepEqual(result.manifest.stages.maker.dependsOn, ['target']);
+  assert.equal((await readQuestions({ cwd, runId: id })).questions[0].assumption, undefined);
   assert.deepEqual(fake.calls.map((call) => path.basename(call.outputFile)), ['scout.json', 'architect.md']);
   assert.equal(result.manifest.calls.used, 2);
   assert.equal(result.verification.status, 'not-run');
@@ -150,7 +151,8 @@ test('optional answers can arrive after maker starts without changing its origin
     { id: 'style', title: 'What label do you prefer?', required: false },
   ] }), async (stage, options) => {
     if (stage === 'maker.md') {
-      assert.match(options.prompt, /State the concrete assumptions/);
+      assert.match(options.prompt, /explicit assumption/);
+      assert.match(options.prompt, /Keep the current behavior/);
       assert.match(options.prompt, /"status":"pending"/);
       await answerInAnotherProcess(cwd, 'style', 'Verbose output');
     }
