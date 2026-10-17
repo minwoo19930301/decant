@@ -317,3 +317,12 @@ test('grok discovery attaches the full effort menu and a stage writes the JSON t
   assert.equal(seen.args[seen.args.indexOf('--permission-mode') + 1], 'plan');
   assert.equal(await readFile(outputFile, 'utf8'), 'pong\n');
 });
+
+test('public API surfaces stay disconnected even when a key is present', async () => {
+  const { describeApiSurfaces, API_SURFACES } = await import('../src/providers/surfaces.mjs');
+  const env = { OPENROUTER_API_KEY: 'present', GROQ_API_KEY: 'present', GEMINI_API_KEY: 'present' };
+  const surfaces = describeApiSurfaces(env);
+  assert.deepEqual(surfaces.map((item) => item.id), API_SURFACES.map((item) => item.id));
+  assert.ok(surfaces.every((item) => item.connected === false && item.keyPresent === true));
+  assert.equal(surfaces.find((item) => item.id === 'groq').note.includes('not the Grok CLI'), true);
+});

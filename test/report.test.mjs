@@ -6,7 +6,7 @@ import { escapeHtml, generateReport, renderReport, sanitizeUrl } from '../src/re
 
 const reportData = {
   title: 'Relay10 배포 준비',
-  heroSummary: 'Codex CLI 지원, 다른 공급자와 앱 네이티브 통합은 아직 미지원입니다.',
+  heroSummary: 'Codex만 연결됩니다. 다른 공급자와 앱은 아직 없습니다.',
   task: '이 보고서의 목적은 경량 하네스의 배포 준비 상태를 검증하고 다음 실행 단계를 안내하는 것입니다.',
   summary: '핵심 기능과 검증 10개가 통과했습니다. 담당자는 준비 조건을 확인한 뒤 게시 명령을 실행할 수 있습니다.',
   status: 'passed',
@@ -24,7 +24,7 @@ const reportData = {
     { target: '다른 공급자', status: 'fail', current: '미지원', reason: '공급자 어댑터가 없습니다.', required: '실행 어댑터 구현' },
   ],
   globalRepos: [
-    { name: 'Global Agent', url: 'https://example.com/agent', signal: '10,000 stars · MIT · active', strengths: '권한 분리', cautions: '큰 runtime', adopted: '단계별 권한', excluded: '상시 daemon' },
+    { name: 'Global Agent', url: 'https://example.com/agent', signal: '별 10,000개 · 공개 라이선스 · 활동 중', strengths: '권한 분리', cautions: '큰 실행기', adopted: '단계별 권한', excluded: '상시 서버' },
   ],
   skillPack: [
     { name: 'decant-research', job: '읽기 전용 근거 수집', patterns: 'progressive disclosure', boundary: '수정하지 않음', status: 'pass', current: '구현됨' },
@@ -87,25 +87,26 @@ test('generateReport creates a self-contained, accessible Korean HTML report', (
   assert.match(html, /Content-Security-Policy/);
   assert.match(html, /<main id="main"/);
   assert.match(html, /<h1>Relay10 배포 준비<\/h1>/);
-  assert.match(html, /핵심 요약:<\/strong> Codex CLI 지원, 다른 공급자와 앱 네이티브 통합은 아직 미지원입니다/);
+  assert.match(html, /<p class="summary">Codex만 연결됩니다\. 다른 공급자와 앱은 아직 없습니다\.<\/p>/);
+  assert.doesNotMatch(html, /linear-gradient|체리피킹|증류했|핵심 요약/);
   assert.match(html, /<th scope="col">단계<\/th>/);
-  assert.match(html, /<th scope="col">라우팅 판단<\/th>/);
+  assert.match(html, /<th scope="col">판단<\/th>/);
   assert.match(html, /> 호출<\/span>/);
   assert.match(html, /> 생략<\/span>/);
   assert.match(html, /코드 easy-no-open-questions · 초기 역할 economy · 점수 3 · 미해결 질문 0개/);
-  assert.match(html, /판단 전 1\/30회 · 필수 잔여 3회 · 고급 조언 0회/);
-  assert.match(html, /하네스별 장단점과 Decant 체리피킹/);
-  assert.match(html, /Decant이 채택한 패턴/);
-  assert.match(html, /현재 공급자·CLI·앱 지원 범위/);
+  assert.match(html, /판단 전 1\/30회 · 필수 잔여 3회 · 조언 0회/);
+  assert.match(html, /다른 도구에서 가져온 것/);
+  assert.match(html, /<th scope="col">가져온 것<\/th>/);
+  assert.match(html, /지금 되는 범위/);
   assert.match(html, /> 지원<\/span>/);
   assert.match(html, /> 미지원<\/span>/);
-  assert.match(html, /글로벌 상위 저장소에서 무엇을 증류했나/);
+  assert.match(html, /2026년 7월에 본 저장소/);
   assert.match(html, /별 수는 인기와 발견 신호일 뿐/);
-  assert.match(html, /여덟 개만 남긴 Decant Skill pack/);
-  assert.match(html, /앞으로 30일·60일·90일에 할 일/);
+  assert.match(html, /스킬 여덟 개/);
+  assert.match(html, /다음에 할 일/);
   assert.match(html, /Reader-10 검수/);
   assert.match(html, /10\/10 자동 구조 프로필 통과/);
-  assert.match(html, /자동 구조 모드: 모델을 호출하지 않고 HTML 구조/);
+  assert.match(html, /자동 구조 모드: 모델을 호출하지 않고 문서 구조/);
   assert.match(html, /의미 이해나 사실 정확성을 증명하지 않습니다/);
   assert.match(html, /https:\/\/example\.com\/evidence/);
   assert.doesNotMatch(html, /<script\b/i);

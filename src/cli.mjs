@@ -20,6 +20,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { discoverCatalog } from './catalog.mjs';
 import { DEFAULT_PROVIDER, PROVIDER_IDS, resolveProvider } from './providers/index.mjs';
+import { describeApiSurfaces, SURFACE_CHECKED } from './providers/surfaces.mjs';
 import { CONFIG_FILENAME, DEFAULT_CONFIG, loadConfig } from './config.mjs';
 import { spawnCapture } from './executor.mjs';
 import { routeTask, routeWithJudgment } from './router.mjs';
@@ -64,8 +65,9 @@ Safety:
   --jev sends only the task text to TypeSafe for advisory judgment (one request).
   Jev never grants permissions; missing keys/errors use deterministic routing.
 
-Backend: config "provider" selects codex, kiro, or grok. Run doctor to see which one is
-active and what it can enforce. Reports are written in Korean.
+Backend: config "provider" selects codex, kiro, or grok. Those are CLIs, not HTTP APIs.
+Grok is the xAI CLI. Groq, OpenRouter, and the Gemini API are separate and are not called.
+Run doctor to see which CLI is active. Reports are written in Korean.
 Run artifacts: .decant/runs/<run-id>/
 `;
 
@@ -544,12 +546,18 @@ export async function main(argv = process.argv.slice(2), context = {}) {
         backend: null,
         config: CONFIG_FILENAME,
         error: selectedError,
+        apiSurfaces: describeApiSurfaces(process.env),
+        apiSurfacesChecked: SURFACE_CHECKED,
       };
       if (flags.json) stdout.write(`${JSON.stringify(result, null, 2)}\n`);
       else {
         stdout.write(`${nodeOk ? 'PASS' : 'FAIL'} Node ${result.node}\n`);
         stdout.write(`INFO Jev ${result.judgment.model}: ${result.judgment.keyConfigured ? 'key configured' : 'TYPESAFE_API_KEY missing'}; opt in with --jev\n`);
         stdout.write(`FAIL ${result.error}\n`);
+        stdout.write(`INFO API hosts below are not stage backends (checked ${result.apiSurfacesChecked}). A key does not connect them.\n`);
+        for (const surface of result.apiSurfaces) {
+          stdout.write(`API ${surface.id} not connected; ${surface.keyEnv} ${surface.keyPresent ? 'present' : 'missing'}; ${surface.endpoint}\n`);
+        }
       }
       return 1;
     }
@@ -598,6 +606,8 @@ export async function main(argv = process.argv.slice(2), context = {}) {
       config: (await exists(path.join(cwd, CONFIG_FILENAME))) ? CONFIG_FILENAME : 'defaults',
       roles: catalog?.roles,
       error: catalogError ?? selectedError,
+      apiSurfaces: describeApiSurfaces(process.env),
+      apiSurfacesChecked: SURFACE_CHECKED,
     };
     if (flags.json) stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     else {
@@ -612,6 +622,10 @@ export async function main(argv = process.argv.slice(2), context = {}) {
       // Catalog discovery often fails for the same missing binary the version
       // probe already reported. Printing it twice looks like two problems.
       if (result.error && result.error !== backendDetail) stdout.write(`FAIL ${result.error}\n`);
+      stdout.write(`INFO API hosts below are not stage backends (checked ${result.apiSurfacesChecked}). A key does not connect them.\n`);
+      for (const surface of result.apiSurfaces) {
+        stdout.write(`API ${surface.id} not connected; ${surface.keyEnv} ${surface.keyPresent ? 'present' : 'missing'}; ${surface.endpoint}\n`);
+      }
     }
     return result.ok ? 0 : 1;
   }

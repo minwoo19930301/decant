@@ -73,7 +73,7 @@ function routingBudget(value) {
     parts.push(`필수 잔여 ${value.mandatoryRemaining}회`);
   }
   if (Number.isInteger(value.advisorInvocations)) {
-    parts.push(`고급 조언 ${value.advisorInvocations}회`);
+    parts.push(`조언 ${value.advisorInvocations}회`);
   }
   if (Number.isInteger(value.requiredTotal)) {
     parts.push(`필요 합계 ${value.requiredTotal}회`);
@@ -134,10 +134,10 @@ function renderKeyValue(items) {
 
 function renderRouting(routing) {
   const rows = normalizeList(routing?.decisions ?? routing?.routes ?? routing);
-  if (!rows.length) return '<p class="muted">라우팅 기록이 없습니다.</p>';
-  return `<div class="table-wrap" tabindex="0" role="region" aria-label="모델 라우팅 표">
+  if (!rows.length) return '<p class="muted">모델 배정 기록이 없습니다.</p>';
+  return `<div class="table-wrap" tabindex="0" role="region" aria-label="모델 배정 표">
     <table>
-      <thead><tr><th scope="col">단계</th><th scope="col">라우팅 판단</th><th scope="col">프로필</th><th scope="col">노력도</th><th scope="col">모델</th><th scope="col">판단 근거</th><th scope="col">호출 예산</th><th scope="col">선택 이유</th></tr></thead>
+      <thead><tr><th scope="col">단계</th><th scope="col">판단</th><th scope="col">역할</th><th scope="col">노력</th><th scope="col">모델</th><th scope="col">근거</th><th scope="col">호출 횟수</th><th scope="col">이유</th></tr></thead>
       <tbody>${rows.map((row, index) => {
         const item = row && typeof row === 'object' ? row : { value: row };
         return `<tr>
@@ -158,9 +158,9 @@ function renderRouting(routing) {
 function renderHarnessComparison(comparison) {
   const rows = normalizeList(comparison);
   if (!rows.length) return '<p class="muted">하네스 비교 기록이 없습니다.</p>';
-  return `<div class="table-wrap" tabindex="0" role="region" aria-label="하네스 장단점과 Decant 체리피킹 표">
+  return `<div class="table-wrap" tabindex="0" role="region" aria-label="다른 도구에서 가져온 것">
     <table class="wide-table">
-      <thead><tr><th scope="col">하네스</th><th scope="col">장점</th><th scope="col">단점</th><th scope="col">Decant이 채택한 패턴</th><th scope="col">의도적으로 제외한 부분</th></tr></thead>
+      <thead><tr><th scope="col">도구</th><th scope="col">장점</th><th scope="col">단점</th><th scope="col">가져온 것</th><th scope="col">남긴 것</th></tr></thead>
       <tbody>${rows.map((row, index) => {
         const item = row && typeof row === 'object' ? row : { name: row };
         return `<tr>
@@ -197,7 +197,7 @@ function renderSupportMatrix(matrix) {
 function renderGlobalRepos(repositories) {
   const rows = normalizeList(repositories);
   if (!rows.length) return '<p class="muted">글로벌 저장소 조사 기록이 없습니다.</p>';
-  return `<div class="table-wrap" tabindex="0" role="region" aria-label="글로벌 상위 저장소 증류 표">
+  return `<div class="table-wrap" tabindex="0" role="region" aria-label="2026년 7월에 본 저장소">
     <table class="wide-table">
       <thead><tr><th scope="col">프로젝트</th><th scope="col">현재 신호</th><th scope="col">강점</th><th scope="col">약점·주의</th><th scope="col">Decant 채택</th><th scope="col">Decant 제외</th></tr></thead>
       <tbody>${rows.map((row, index) => {
@@ -221,14 +221,14 @@ function renderGlobalRepos(repositories) {
 
 function renderSkillPack(skills) {
   const rows = normalizeList(skills);
-  if (!rows.length) return '<p class="muted">Skill pack 기록이 없습니다.</p>';
-  return `<div class="table-wrap" tabindex="0" role="region" aria-label="Decant Skill pack 표">
+  if (!rows.length) return '<p class="muted">스킬 기록이 없습니다.</p>';
+  return `<div class="table-wrap" tabindex="0" role="region" aria-label="스킬 여덟 개">
     <table class="support-table">
-      <thead><tr><th scope="col">Skill</th><th scope="col">한 가지 일</th><th scope="col">증류한 패턴</th><th scope="col">경계</th><th scope="col">현재 상태</th></tr></thead>
+      <thead><tr><th scope="col">스킬</th><th scope="col">하는 일</th><th scope="col">참고한 방식</th><th scope="col">하지 않는 일</th><th scope="col">상태</th></tr></thead>
       <tbody>${rows.map((row, index) => {
         const item = row && typeof row === 'object' ? row : { name: row };
         return `<tr>
-          <th scope="row">${escapeHtml(item.name ?? item.skill ?? `Skill ${index + 1}`)}</th>
+          <th scope="row">${escapeHtml(item.name ?? item.skill ?? `스킬 ${index + 1}`)}</th>
           <td>${escapeHtml(item.job ?? item.purpose ?? '-')}</td>
           <td>${escapeHtml(item.patterns ?? item.sources ?? '-')}</td>
           <td>${escapeHtml(item.boundary ?? item.limit ?? '-')}</td>
@@ -333,9 +333,9 @@ function renderReader10(reader) {
   const isPendingLive = mode === 'pending-live';
   const passUnit = isDeterministic ? '자동 구조 프로필' : mode === 'live' ? '실제 모델 독자 역할' : '검수 항목';
   const modeDescription = isDeterministic
-    ? '자동 구조 모드: 모델을 호출하지 않고 HTML 구조, 길이, 용어, 링크, 행동 신호와 접근성 규칙만 검사합니다. 아래 점수는 실제 모델 독자 점수가 아니며 의미 이해나 사실 정확성을 증명하지 않습니다.'
+    ? '자동 구조 모드: 모델을 호출하지 않고 문서 구조, 길이, 용어, 링크, 행동 신호와 접근성 규칙만 검사합니다. 아래 점수는 실제 모델 독자 점수가 아니며 의미 이해나 사실 정확성을 증명하지 않습니다.'
     : isPendingLive
-      ? '판독 대기 모드: 이 HTML이 완성된 뒤 실제 모델 독자 10회 판독을 실행합니다. 이 상태는 제품 출시 보류를 뜻하지 않습니다. 최종 결과는 reportSha256으로 이 HTML과 연결한 별도 JSON에 기록합니다.'
+      ? '판독 대기 모드: 이 문서가 완성된 뒤 실제 모델 독자 10회 판독을 실행합니다. 이 상태는 제품 출시 보류를 뜻하지 않습니다. 최종 결과는 이 문서의 해시와 연결한 별도 기록에 남깁니다.'
     : mode === 'live'
       ? '라이브 모드: 10개 독자 역할을 각각 별도 모델 호출로 평가합니다. 호출 실패도 실패로 집계될 수 있으며, 모델 간 독립성이나 사실 정확성을 증명하지 않습니다.'
       : '검수 모드가 기록되지 않았습니다. 이 결과만으로 검사 방식이나 의미 이해를 추정할 수 없습니다.';
@@ -404,99 +404,95 @@ export function generateReport(data = {}, options = {}) {
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
   <title>${escapeHtml(title)}</title>
   <style>
-    :root { color-scheme: light dark; --bg:#f5f6f8; --panel:#fff; --text:#17202a; --muted:#5d6876; --line:#dfe3e8; --accent:#315efb; --pass:#16794b; --fail:#b42318; --warn:#8a5700; --info:#52606d; --code:#101828; }
+    :root { color-scheme: light dark; --bg:#f5f5f7; --panel:#fff; --text:#1d1d1f; --muted:#6e6e73; --line:#d2d2d7; --accent:#0066cc; --pass:#248a3d; --fail:#d70015; --warn:#b25000; --info:#6e6e73; --code:#1d1d1f; }
     * { box-sizing:border-box; }
     html { scroll-behavior:smooth; }
-    body { margin:0; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif; font-size:16px; line-height:1.7; overflow-wrap:anywhere; }
-    a { color:var(--accent); text-underline-offset:.18em; }
-    a:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline:3px solid var(--accent); outline-offset:3px; }
-    .skip-link { position:absolute; top:-4rem; left:1rem; z-index:20; padding:.65rem 1rem; background:var(--panel); color:var(--text); border:2px solid var(--accent); }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Apple SD Gothic Neo","Pretendard","Segoe UI",sans-serif; font-size:17px; line-height:1.5; letter-spacing:-.01em; overflow-wrap:anywhere; font-variant-numeric:tabular-nums; }
+    a { color:var(--accent); text-decoration-thickness:1px; text-underline-offset:.18em; }
+    a:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+    .skip-link { position:absolute; top:-4rem; left:1rem; z-index:20; padding:.55rem .8rem; background:var(--panel); color:var(--text); }
     .skip-link:focus { top:1rem; }
-    .shell { width:min(100% - 2rem, 1100px); margin-inline:auto; }
-    .hero { padding:4rem 0 2rem; background:linear-gradient(135deg,#111827,#243b73); color:#fff; }
-    .eyebrow { margin:0 0 .35rem; color:inherit; font-size:.78rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; opacity:.78; }
-    h1,h2,h3 { line-height:1.25; letter-spacing:-.02em; }
-    h1 { margin:.2rem 0 .7rem; font-size:clamp(2rem,5vw,3.6rem); }
-    h2 { margin:0 0 1rem; font-size:clamp(1.45rem,3vw,2rem); }
-    h3 { margin:.1rem 0 .55rem; font-size:1.08rem; }
-    .hero-summary { max-width:72ch; font-size:1.08rem; }
-    .meta { display:flex; flex-wrap:wrap; gap:.75rem 1.3rem; margin-top:1.3rem; align-items:center; }
-    .meta span, .meta time { color:#d9e2f2; }
-    nav { position:sticky; top:0; z-index:10; background:color-mix(in srgb,var(--panel) 94%,transparent); border-bottom:1px solid var(--line); backdrop-filter:blur(10px); }
-    nav ul { display:flex; gap:.35rem; margin:0; padding:.65rem 0; list-style:none; overflow-x:auto; }
-    nav a { display:block; padding:.4rem .68rem; border-radius:.45rem; color:var(--text); font-weight:700; white-space:nowrap; text-decoration:none; }
-    nav a:hover { background:var(--bg); }
-    main { padding:2rem 0 5rem; }
-    section { scroll-margin-top:5rem; margin:0 0 1.2rem; padding:clamp(1.1rem,3vw,2rem); background:var(--panel); border:1px solid var(--line); border-radius:1rem; box-shadow:0 8px 30px rgb(16 24 40 / .05); }
-    .lede { font-size:1.08rem; }
-    .status { display:inline-flex; align-items:center; gap:.3rem; width:max-content; margin-right:.55rem; padding:.12rem .55rem; border:1px solid currentColor; border-radius:999px; font-size:.8rem; font-weight:800; }
+    .shell { width:min(100% - 2.5rem, 920px); margin-inline:auto; }
+    header.page { padding:3.2rem 0 1.2rem; }
+    h1,h2,h3 { font-weight:650; line-height:1.2; letter-spacing:-.022em; }
+    h1 { margin:0 0 .6rem; font-size:clamp(1.8rem,4vw,2.15rem); }
+    h2 { margin:0 0 .85rem; font-size:1.25rem; }
+    h3 { margin:.2rem 0 .4rem; font-size:1rem; font-weight:600; }
+    .summary { max-width:62ch; margin:0; font-size:1.05rem; }
+    .meta { display:flex; flex-wrap:wrap; gap:.4rem 1rem; margin-top:1rem; color:var(--muted); font-size:.92rem; }
+    nav { position:sticky; top:0; z-index:10; background:color-mix(in srgb, var(--bg) 88%, transparent); border-bottom:1px solid var(--line); }
+    nav ul { display:flex; gap:1rem; margin:0; padding:.7rem 0; list-style:none; overflow-x:auto; }
+    nav a { color:var(--muted); font-size:.92rem; font-weight:500; white-space:nowrap; text-decoration:none; }
+    nav a:hover { color:var(--text); }
+    main { padding:1.4rem 0 4rem; }
+    section { scroll-margin-top:4.2rem; margin:0 0 .7rem; padding:1.15rem 1.2rem 1.25rem; background:var(--panel); border-radius:12px; }
+    .lede { font-size:1.02rem; }
+    .status { margin-right:.45rem; font-size:.92rem; font-weight:600; }
+    .status span[aria-hidden] { display:none; }
     .status--pass { color:var(--pass); } .status--fail { color:var(--fail); } .status--warn { color:var(--warn); } .status--neutral { color:var(--info); }
-    .facts { display:grid; grid-template-columns:repeat(auto-fit,minmax(12rem,1fr)); gap:.7rem; margin:1rem 0; }
-    .facts div { padding:.7rem .8rem; background:var(--bg); border-radius:.6rem; }
-    .facts dt { color:var(--muted); font-size:.78rem; font-weight:800; }
-    .facts dd { margin:.16rem 0 0; white-space:pre-wrap; }
-    .table-wrap { max-width:100%; overflow:auto; border:1px solid var(--line); border-radius:.7rem; }
-    table { width:100%; border-collapse:collapse; min-width:44rem; }
-    .wide-table { min-width:76rem; }
-    .support-table { min-width:62rem; }
-    th,td { padding:.7rem .8rem; text-align:left; vertical-align:top; border-bottom:1px solid var(--line); }
-    thead th { background:var(--bg); }
+    .facts { display:grid; grid-template-columns:repeat(auto-fit,minmax(11rem,1fr)); gap:0; margin:1rem 0 0; border-top:1px solid var(--line); }
+    .facts div { padding:.7rem 0; border-bottom:1px solid var(--line); }
+    .facts dt { color:var(--muted); font-size:.8rem; font-weight:500; }
+    .facts dd { margin:.15rem 0 0; white-space:pre-wrap; }
+    .table-wrap { max-width:100%; overflow:auto; }
+    table { width:100%; border-collapse:collapse; min-width:40rem; font-size:.92rem; }
+    .wide-table { min-width:68rem; }
+    .support-table { min-width:52rem; }
+    th,td { padding:.65rem .7rem .65rem 0; text-align:left; vertical-align:top; border-bottom:1px solid var(--line); }
+    thead th { color:var(--muted); font-size:.78rem; font-weight:500; }
     tbody tr:last-child th,tbody tr:last-child td { border-bottom:0; }
-    .stage-list { display:grid; gap:1rem; }
-    .stage { padding:1rem; border:1px solid var(--line); border-radius:.8rem; }
-    .stage > header { display:flex; justify-content:space-between; gap:1rem; align-items:flex-start; }
-    summary { cursor:pointer; font-weight:800; }
-    details { margin-top:.7rem; }
-    pre { max-width:100%; overflow:auto; padding:1rem; border-radius:.65rem; background:var(--code); color:#f7f8fa; white-space:pre-wrap; word-break:break-word; }
+    .stage-list { display:grid; }
+    .stage { padding:1rem 0; border-top:1px solid var(--line); }
+    .stage:first-child { border-top:0; padding-top:0; }
+    .stage > header { display:flex; justify-content:space-between; gap:1rem; align-items:baseline; }
+    summary { cursor:pointer; font-weight:600; }
+    details { margin-top:.6rem; }
+    pre { max-width:100%; overflow:auto; margin:.6rem 0 0; padding:.85rem 0; background:transparent; color:var(--text); white-space:pre-wrap; word-break:break-word; font-size:.88rem; }
     .check-list,.persona-grid { padding:0; list-style:none; }
-    .check-list { display:grid; gap:.6rem; }
-    .check-list > li { padding:.8rem; border:1px solid var(--line); border-radius:.65rem; }
-    .check-list p { margin:.35rem 0 0; color:var(--muted); }
-    .persona-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(15rem,1fr)); gap:.8rem; }
-    .persona-grid > li { padding:1rem; border:1px solid var(--line); border-radius:.75rem; }
-    .persona-grid p { margin:.45rem 0; }
-    .reader-mode { padding:.8rem 1rem; border-left:4px solid var(--info); background:var(--bg); }
-    .reader-summary { display:flex; flex-wrap:wrap; justify-content:space-between; gap:.8rem; padding:1rem; margin-bottom:1rem; background:var(--bg); border-radius:.7rem; }
-    .reader-summary p { margin:0; }
-    .critical { margin-top:1rem; padding:1rem; border-left:5px solid var(--fail); background:color-mix(in srgb,var(--fail) 8%,var(--panel)); }
-    .evidence-list li + li { margin-top:.75rem; }
-    .evidence-list p { margin:.15rem 0; color:var(--muted); }
+    .check-list > li, .persona-grid > li { padding:.75rem 0; border-top:1px solid var(--line); }
+    .check-list p, .persona-grid p { margin:.3rem 0 0; color:var(--muted); }
+    .reader-mode { margin:0 0 .8rem; }
+    .reader-summary { display:flex; flex-wrap:wrap; justify-content:space-between; gap:.6rem 1rem; padding:.8rem 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+    .reader-summary p { margin:0; color:var(--muted); }
+    .critical { margin-top:1rem; }
+    .critical h3 { color:var(--fail); }
+    .evidence-list li + li { margin-top:.7rem; }
+    .evidence-list p { margin:.1rem 0; color:var(--muted); }
     .muted { color:var(--muted); }
-    footer { padding:1.5rem 0 3rem; color:var(--muted); text-align:center; }
-    @media (max-width:650px) { .shell { width:min(100% - 1rem,1100px); } .hero { padding:2.5rem 0 1.5rem; } section { border-radius:.7rem; } .stage > header { display:block; } .status { margin-top:.35rem; } }
+    footer { padding:0 0 3rem; color:var(--muted); font-size:.88rem; }
+    @media (max-width:650px) { .shell { width:min(100% - 1.4rem, 920px); } header.page { padding:2rem 0 1rem; } .stage > header { display:block; } }
     @media (prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } }
-    @media print { nav,.skip-link { display:none; } body { background:#fff; color:#000; } section { break-inside:avoid; box-shadow:none; } }
-    @media (prefers-color-scheme:dark) { :root { --bg:#101318; --panel:#181d24; --text:#edf1f6; --muted:#aab4c0; --line:#343c47; --accent:#8facff; --pass:#55d69e; --fail:#ff8a80; --warn:#ffd166; --info:#b8c2cc; --code:#080b0f; } }
+    @media print { nav,.skip-link { display:none; } body { background:#fff; color:#000; } section { break-inside:avoid; } }
+    @media (prefers-color-scheme:dark) { :root { --bg:#000; --panel:#1c1c1e; --text:#f5f5f7; --muted:#98989d; --line:#38383a; --accent:#0a84ff; --pass:#30d158; --fail:#ff453a; --warn:#ff9f0a; --info:#98989d; --code:#f5f5f7; } }
   </style>
 </head>
 <body>
   <a class="skip-link" href="#main">본문으로 건너뛰기</a>
-  <header class="hero">
+  <header class="page">
     <div class="shell">
-      <p class="eyebrow">Decant · 실행 보고서</p>
       <h1>${escapeHtml(title)}</h1>
-      <div class="hero-summary"><strong>핵심 요약:</strong> ${escapeHtml(heroSummary)}</div>
-      <div class="meta">${statusBadge(overallStatus)}<span>실행 ID ${escapeHtml(runId)}</span><time datetime="${escapeHtml(generatedAt)}">생성 ${escapeHtml(generatedAt)}</time></div>
+      <p class="summary">${escapeHtml(heroSummary)}</p>
+      <div class="meta">${statusBadge(overallStatus)}<span>실행 번호 ${escapeHtml(runId)}</span><time datetime="${escapeHtml(generatedAt)}">${escapeHtml(generatedAt)}</time></div>
     </div>
   </header>
-  <nav aria-label="보고서 목차"><div class="shell"><ul>
-    <li><a href="#overview">요약</a></li><li><a href="#routing">라우팅</a></li>${hasGlobalRepos ? '<li><a href="#global">글로벌 증류</a></li>' : ''}${hasSkillPack ? '<li><a href="#skills">Skill pack</a></li>' : ''}${hasComparisons ? '<li><a href="#comparison">국내·계보</a></li>' : ''}${hasSupportMatrix ? '<li><a href="#support">지원 범위</a></li>' : ''}${hasGrowthPlan ? '<li><a href="#growth">발전·홍보</a></li>' : ''}<li><a href="#stages">단계 출력</a></li><li><a href="#verification">검증</a></li><li><a href="#reader10">Reader-10</a></li><li><a href="#evidence">근거</a></li><li><a href="#actions">다음 단계</a></li>
+  <nav aria-label="목차"><div class="shell"><ul>
+    <li><a href="#overview">요약</a></li><li><a href="#routing">모델</a></li>${hasGlobalRepos ? '<li><a href="#global">참고한 저장소</a></li>' : ''}${hasSkillPack ? '<li><a href="#skills">스킬</a></li>' : ''}${hasComparisons ? '<li><a href="#comparison">가져온 것</a></li>' : ''}${hasSupportMatrix ? '<li><a href="#support">되는 것</a></li>' : ''}${hasGrowthPlan ? '<li><a href="#growth">다음 일</a></li>' : ''}<li><a href="#stages">기록</a></li><li><a href="#verification">검증</a></li><li><a href="#reader10">읽기 검사</a></li><li><a href="#evidence">근거</a></li><li><a href="#actions">다음</a></li>
   </ul></div></nav>
   <main id="main" class="shell">
-    <section id="overview" aria-labelledby="overview-title"><p class="eyebrow">01 · 한눈에 보기</p><h2 id="overview-title">목적과 결과 요약</h2><p class="muted"><strong>용어:</strong> CLI(명령줄 인터페이스), HTML(웹 문서 형식), ID(식별자), PASS(통과), FAIL(실패).</p><h3>요청 목적</h3>${renderText(task, 'lede')}<h3>최종 결과</h3>${renderText(summary, 'lede')}${renderKeyValue({ 실행상태: STATUS_LABELS[normalizeStatus(overallStatus)], 실행ID: runId, 생성시각: generatedAt })}</section>
-    <section id="routing" aria-labelledby="routing-title"><p class="eyebrow">02 · 의사결정</p><h2 id="routing-title">모델 라우팅</h2><p>실행 전에 정한 프로필과 실제 실행 여부입니다. 프로필은 카탈로그 메타데이터 기반 역할이며 가격이나 성능 순위를 보장하지 않습니다.</p>${renderRouting(data.routing)}</section>
-    ${hasGlobalRepos ? `<section id="global" aria-labelledby="global-title"><p class="eyebrow">글로벌 · 2026-07-14 스냅샷</p><h2 id="global-title">글로벌 상위 저장소에서 무엇을 증류했나</h2>${renderText(data.globalSummary ?? '별 수는 인기와 발견 신호일 뿐 품질, 사용량, 성능을 증명하지 않습니다. 현재성, 구조, 테스트, 라이선스를 함께 봤습니다.')} ${renderGlobalRepos(globalRepos)}</section>` : ''}
-    ${hasSkillPack ? `<section id="skills" aria-labelledby="skills-title"><p class="eyebrow">Skill · progressive disclosure</p><h2 id="skills-title">여덟 개만 남긴 Decant Skill pack</h2>${renderText(data.skillSummary ?? 'Skill은 한 가지 일을 맡고 필요할 때만 로드됩니다. Plugin은 이 Skill들을 배포하는 묶음이며 현재 task 모델을 바꾸지 않습니다. 스킬 id는 당분간 decant-* 레거시 이름을 유지합니다.')} ${renderSkillPack(skillPack)}</section>` : ''}
-    ${hasComparisons ? `<section id="comparison" aria-labelledby="comparison-title"><p class="eyebrow">비교 · 설계 계보</p><h2 id="comparison-title">하네스별 장단점과 Decant 체리피킹</h2>${renderText(data.comparisonSummary ?? 'Decant(구 Relay10)은 비교 대상의 코드를 복사하지 않고, 검증 가능한 동작 패턴만 선택적으로 독립 구현했습니다.')} ${renderHarnessComparison(comparisons)}</section>` : ''}
-    ${hasSupportMatrix ? `<section id="support" aria-labelledby="support-title"><p class="eyebrow">지원 · 이식성</p><h2 id="support-title">현재 공급자·CLI·앱 지원 범위</h2>${renderText(data.supportSummary ?? '현재 작동하는 범위와 향후 구현 가능한 범위를 구분합니다.')} ${renderSupportMatrix(supportMatrix)}</section>` : ''}
-    ${hasGrowthPlan ? `<section id="growth" aria-labelledby="growth-title"><p class="eyebrow">발전 · 증거 중심 홍보</p><h2 id="growth-title">앞으로 30일·60일·90일에 할 일</h2>${renderText(data.growthSummary ?? '기능 수보다 재현 가능한 성공 사례, 실패 공개, 사용자 유지율을 우선합니다.')} ${renderGrowthPlan(growthPlan)}</section>` : ''}
-    <section id="stages" aria-labelledby="stages-title"><p class="eyebrow">03 · 작업 기록</p><h2 id="stages-title">단계별 출력</h2>${renderStages(data)}</section>
-    <section id="verification" aria-labelledby="verification-title"><p class="eyebrow">04 · 품질 확인</p><h2 id="verification-title">검증 결과</h2><p>실패나 오류가 있으면 아래 세부 기록과 다음 단계에서 복구 방법을 확인하세요.</p>${renderVerification(data.verification)}</section>
-    <section id="reader10" aria-labelledby="reader10-title"><p class="eyebrow">05 · 보고서 검수</p><h2 id="reader10-title">Reader-10 검수</h2><p>선택된 모드의 구조 규칙 또는 모델 응답을 집계한 결과이며, 사실성 검증을 대신하지 않습니다.</p>${renderReader10(reader)}</section>
-    <section id="evidence" aria-labelledby="evidence-title"><p class="eyebrow">06 · 추적 가능성</p><h2 id="evidence-title">근거와 출처</h2>${renderEvidence(evidence)}</section>
-    <section id="actions" aria-labelledby="actions-title"><p class="eyebrow">07 · 실행 안내</p><h2 id="actions-title">다음 단계</h2><p>필요한 조치를 순서대로 실행하고, 문제가 생기면 검증 결과의 오류 또는 대안 기록을 먼저 확인하세요.</p>${renderNextSteps(nextSteps)}</section>
+    <section id="overview" aria-labelledby="overview-title"><h2 id="overview-title">목적과 결과 요약</h2><h3>요청</h3>${renderText(task, 'lede')}<h3>결과</h3>${renderText(summary, 'lede')}${renderKeyValue({ 상태: STATUS_LABELS[normalizeStatus(overallStatus)], 실행번호: runId, 만든시각: generatedAt })}</section>
+    <section id="routing" aria-labelledby="routing-title"><h2 id="routing-title">모델 배정</h2><p>파일을 고치는 단계는 하나고, 나머지는 읽기만 합니다. 역할 이름은 그 컴퓨터의 모델 목록에서 고른 자리이고, 가격이나 순위를 뜻하지 않습니다.</p>${renderRouting(data.routing)}</section>
+    ${hasGlobalRepos ? `<section id="global" aria-labelledby="global-title"><h2 id="global-title">2026년 7월에 본 저장소</h2>${renderText(data.globalSummary ?? '별 수는 인기와 발견 신호일 뿐 품질, 사용량, 성능을 증명하지 않습니다. 현재성, 구조, 테스트, 라이선스를 함께 봤습니다.')} ${renderGlobalRepos(globalRepos)}</section>` : ''}
+    ${hasSkillPack ? `<section id="skills" aria-labelledby="skills-title"><h2 id="skills-title">스킬 여덟 개</h2>${renderText(data.skillSummary ?? '스킬은 한 가지 일만 하고, 그 일이 필요할 때만 읽습니다. 묶음으로 배포해도 지금 쓰는 모델이 바뀌지는 않습니다.')} ${renderSkillPack(skillPack)}</section>` : ''}
+    ${hasComparisons ? `<section id="comparison" aria-labelledby="comparison-title"><h2 id="comparison-title">다른 도구에서 가져온 것</h2>${renderText(data.comparisonSummary ?? '코드를 복사하지 않았습니다. 확인되는 동작만 따로 만들었습니다.')} ${renderHarnessComparison(comparisons)}</section>` : ''}
+    ${hasSupportMatrix ? `<section id="support" aria-labelledby="support-title"><h2 id="support-title">지금 되는 범위</h2>${renderText(data.supportSummary ?? '이미 연결된 것과, 연결은 안 했지만 공식 주소가 있는 것을 구분합니다.')} ${renderSupportMatrix(supportMatrix)}</section>` : ''}
+    ${hasGrowthPlan ? `<section id="growth" aria-labelledby="growth-title"><h2 id="growth-title">다음에 할 일</h2>${renderText(data.growthSummary ?? '기능 수보다, 다시 돌려 볼 수 있는 성공과 실패를 먼저 남깁니다.')} ${renderGrowthPlan(growthPlan)}</section>` : ''}
+    <section id="stages" aria-labelledby="stages-title"><h2 id="stages-title">단계별 기록</h2>${renderStages(data)}</section>
+    <section id="verification" aria-labelledby="verification-title"><h2 id="verification-title">검증 결과</h2><p>실패하면 아래 기록과 다음 단계의 복구 방법을 먼저 봅니다.</p>${renderVerification(data.verification)}</section>
+    <section id="reader10" aria-labelledby="reader10-title"><h2 id="reader10-title">Reader-10 검수</h2><p>문장이 읽히는지만 봅니다. 코드가 맞다는 뜻은 아닙니다.</p>${renderReader10(reader)}</section>
+    <section id="evidence" aria-labelledby="evidence-title"><h2 id="evidence-title">근거와 출처</h2>${renderEvidence(evidence)}</section>
+    <section id="actions" aria-labelledby="actions-title"><h2 id="actions-title">다음 단계</h2><p>순서대로 하고, 막히면 검증 기록의 오류부터 봅니다.</p>${renderNextSteps(nextSteps)}</section>
   </main>
-  <footer class="shell"><p>이 파일은 외부 스크립트나 스타일시트 없이 생성된 자체 포함 Decant 보고서입니다.</p></footer>
+  <footer class="shell"><p>이 파일만 열면 됩니다. 밖에서 글꼴이나 스타일을 받아 오지 않습니다.</p></footer>
 </body>
 </html>`;
 }
