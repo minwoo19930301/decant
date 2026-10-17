@@ -476,8 +476,12 @@ async function pipelineModule(injected) {
 function printQuestions(state, stdout) {
   if (!state) { stdout.write('No questions for this run.\n'); return; }
   for (const question of state.questions) {
-    stdout.write(`[${question.status}${question.required ? '; required before edits' : '; optional'}] ${question.id}: ${question.title}\n`);
+    const kind = question.required ? 'blocking; required before edits' : 'non-blocking';
+    stdout.write(`[${question.status}; ${kind}] ${question.id}: ${question.title}\n`);
     if (question.options?.length) stdout.write(`  Options: ${question.options.join(' / ')} (free text accepted)\n`);
+    if (question.assumption && question.status !== 'answered') {
+      stdout.write(`  Assumption: ${question.assumption}\n`);
+    }
     if (question.status === 'answered') stdout.write(`  Answer: ${question.answer}\n`);
   }
   if (state.questions.some(question => question.status === 'pending')) {

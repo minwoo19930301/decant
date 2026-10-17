@@ -16,6 +16,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { promisify } from 'node:util';
 import {
+  REVERSIBLE_ASSUMPTION,
   answerQuestion,
   normalizeQuestions,
   openQuestions,
@@ -48,7 +49,7 @@ async function childOperation(cwd, operation, options) {
 
 test('normalization preserves required intent and converts legacy questions to optional slugs', () => {
   assert.deepEqual(normalizeQuestions([' Select a color? ', { id: 'ship_now', title: 'Ship?', required: true, options: [' Yes ', 'No'] }]), [
-    { id: 'q-1', title: 'Select a color?', required: false },
+    { id: 'q-1', title: 'Select a color?', required: false, assumption: REVERSIBLE_ASSUMPTION },
     { id: 'ship_now', title: 'Ship?', required: true, options: ['Yes', 'No'] },
   ]);
   assert.deepEqual(normalizeQuestions([], 0), []);
@@ -127,6 +128,8 @@ test('posting is nonblocking, has no selected answer, and returns detached snaps
   assert.ok(performance.now() - start < 1000);
   assert.deepEqual(questionSummary(state), { pending: 2, requiredPending: 1, answered: 0 });
   assert.ok(state.questions.every((question) => question.status === 'pending' && question.answer === undefined && question.answeredAt === undefined));
+  assert.equal(state.questions[0].assumption, 'Light');
+  assert.equal(state.questions[1].assumption, undefined);
   const snapshot = snapshotQuestions(state);
   snapshot.questions[0].options.push('Changed');
   state.questions[0].title = 'Changed';

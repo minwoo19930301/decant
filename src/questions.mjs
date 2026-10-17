@@ -15,6 +15,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 const RUN_ID_PATTERN = /^\d{8}T\d{9}Z-[a-z0-9]{8}$/i;
 const QUESTION_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/i;
 const MAX_QUESTIONS = 3;
+export const REVERSIBLE_ASSUMPTION = 'Keep the current behavior. This choice can be changed later.';
 const MAX_STORE_BYTES = 64 * 1024;
 const LOCK_WAIT_MS = 1500;
 const LOCK_STALE_MS = 30_000;
@@ -71,6 +72,14 @@ export function normalizeQuestions(input, max = MAX_QUESTIONS) {
       if (new Set(question.options).size !== question.options.length) {
         throw new TypeError(`Question ${value.id} options must be distinct`);
       }
+    }
+    // Blocking questions stay unanswered until a person replies. Non-blocking
+    // questions record an explicit assumption so reversible work can continue.
+    if (question.required !== true) {
+      const explicit = typeof value.assumption === 'string' ? value.assumption.trim() : '';
+      question.assumption = explicit
+        ? text(explicit, `Question ${value.id} assumption`, 1000)
+        : (question.options?.[0] ?? REVERSIBLE_ASSUMPTION);
     }
     return question;
   });

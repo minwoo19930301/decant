@@ -42,7 +42,10 @@ refreshes answers immediately before the maker:
 - Optional questions allow work to continue. Stage prompts require concrete
   assumptions and disclosure of unresolved questions.
 
-There are no automatic answers, selected defaults, or timeout consent. Normal
+Non-blocking questions record an explicit assumption: the first suggested
+choice, or "Keep the current behavior. This choice can be changed later."
+Blocking questions do not get an assumption and still stop before edits.
+There is no timeout consent. Normal
 invocation budgets and advisor policy still apply; an unfunded required advisor
 can stop the run before it reaches the question gate.
 

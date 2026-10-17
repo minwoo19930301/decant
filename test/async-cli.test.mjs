@@ -103,8 +103,9 @@ test('required answers give CLI exit 4 and display actionable question and resum
   const parent = await waitingParent(cwd);
   assert.equal(exitCodeForStatus('waiting'), 4);
   assert.equal(parent.exitCode, 4);
-  assert.match(parent.output.read(), /\[pending; required before edits\] target:/);
-  assert.match(parent.output.read(), /\[pending; optional\] style:/);
+  assert.match(parent.output.read(), /\[pending; blocking; required before edits\] target:/);
+  assert.match(parent.output.read(), /\[pending; non-blocking\] style:/);
+  assert.match(parent.output.read(), /Assumption: Keep the current behavior/);
   assert.match(parent.output.read(), new RegExp(`decant answer ${PARENT_ID}`));
   assert.match(parent.output.read(), new RegExp(`decant resume ${PARENT_ID}`));
   assert.deepEqual(parent.calls.map((call) => path.basename(call.outputFile)), ['scout.json', 'architect.md']);
