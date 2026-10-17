@@ -68,9 +68,12 @@ Decant does *not* make, so nobody has to discover it the hard way.
   - The Kiro adapter asks for the schema in the prompt and extracts the answer
     from the transcript; it cannot refuse malformed output. Isolation is a tool
     allowlist, which is weaker than a sandbox.
-  - Grok advertises a native JSON schema and requests plan mode for read-only
-    stages. Its sandbox capability is `fail-open`: plan mode is not a kernel
-    guarantee. On Grok 4.7, `max` and `ultra` snap down to `xhigh`.
+  - Grok is given `--json-schema`, then Decant still renames drifted keys
+    before accepting the answer. That is not Codex refusing a schema mismatch.
+    Read-only stages request plan mode. The sandbox capability is `fail-open`:
+    plan mode is not a kernel guarantee. On Grok 4.7, `max` and `ultra` snap
+    down to `xhigh`. Other Grok model ids are not snapped. Live Reader-10
+    through Grok is unverified.
   - `doctor` prints which you have; `run.json` records it.
 - Providers cannot be mixed within one run.
 - Direct HTTP adapters for Anthropic, OpenAI, xAI, or Gemini are not included.
@@ -84,7 +87,9 @@ Decant does *not* make, so nobody has to discover it the hard way.
 - A failed stage ends the run. There is no retry, no in-place checkpoint, and
   no rollback.
 - `decant resume` starts a new budgeted child run from a waiting or completed
-  parent. It does not continue a failed stage at its last instruction.
+  parent, and only after at least one answer is recorded and no required
+  question is still pending. It does not continue a failed stage at its last
+  instruction.
 - There is no automatic escalation after a failure.
 - The only evidence-time decision point is the architect check after the scout.
 - The workspace lock is per-repository and best-effort by design; see
