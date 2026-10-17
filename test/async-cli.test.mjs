@@ -333,3 +333,56 @@ test('an economy judgment cannot authorize configured verification commands', as
   assert.equal(judgments, 1);
   assert.equal(executed.allowVerificationCommands, true);
 });
+
+test('a non-blocking question proceeds on its assumption, then a different answer resumes', async (t) => {
+  const cwd = await workspace(t);
+  const parentId = '20261017T120000000Z-assume01';
+  const childId = '20261017T120100000Z-assume02';
+  const style = { id: 'style', title: 'Which output style?', options: ['Plain', 'Color'], required: false };
+  const first = fakeBackend([style]);
+  const started = contextFor(cwd, {
+    pipeline: {
+      ...pipeline,
+      runPipeline: (options) => pipeline.runPipeline({
+        ...options,
+        idFactory: () => parentId,
+        runCodexImpl: first.run,
+      }),
+    },
+  });
+  assert.equal(await main(['run', TASK], started.context), 3);
+  const maker = first.calls.find((call) => path.basename(call.outputFile) === 'maker.md');
+  assert.ok(maker);
+  assert.match(maker.prompt, /Plain/);
+  assert.doesNotMatch(started.output.read(), /Required answers pending/);
+
+  const listed = contextFor(cwd);
+  assert.equal(await main(['questions', parentId], listed.context), 0);
+  assert.match(listed.output.read(), /\[pending; non-blocking\] style:/);
+  assert.match(listed.output.read(), /Assumption: Plain/);
+
+  const answered = contextFor(cwd);
+  assert.equal(await main(['answer', parentId, 'style', 'Color'], answered.context), 0);
+  assert.match(answered.output.read(), /Differs from assumption: Plain/);
+  assert.match(answered.output.read(), /Affected stages: maker, reviewer, explainer/);
+  assert.match(answered.output.read(), new RegExp(`decant resume ${parentId}`));
+
+  const parentDir = path.join(cwd, '.decant', 'runs', parentId);
+  const before = await frozenBytes(parentDir);
+  const second = fakeBackend([]);
+  const resumed = contextFor(cwd, {
+    pipeline: {
+      ...pipeline,
+      runPipeline: (options) => pipeline.runPipeline({
+        ...options,
+        idFactory: () => childId,
+        runCodexImpl: second.run,
+      }),
+    },
+  });
+  assert.equal(await main(['resume', parentId, '--budget-calls', '8'], resumed.context), 3);
+  const childMaker = second.calls.find((call) => path.basename(call.outputFile) === 'maker.md');
+  assert.match(childMaker.prompt, /Color/);
+  assert.equal((await pipeline.verifyFrozenRun(path.join(cwd, '.decant', 'runs', childId))).manifest.parentRunId, parentId);
+  assert.deepEqual(await frozenBytes(parentDir), before);
+});
