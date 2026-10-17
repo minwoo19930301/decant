@@ -88,6 +88,10 @@ test('doctor reports a structured FAIL when Codex is missing instead of crashing
   assert.match(text, /^PASS Node v\d+/m);
   assert.match(text, /^INFO provider codex \(Codex CLI\); available: codex, kiro, grok$/m);
   assert.match(text, /FAIL codex codex not found on PATH/);
+  assert.match(text, /API openrouter not connected/);
+  assert.match(text, /API groq not connected/);
+  assert.match(text, /API gemini not connected/);
+  assert.doesNotMatch(text, /API grok connected/);
   assert.equal(text.match(/not found on PATH/g).length, 1);
   assert.doesNotMatch(text, /spawn codex ENOENT/);
 });

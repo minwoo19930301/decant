@@ -75,6 +75,19 @@ Decant does *not* make, so nobody has to discover it the hard way.
   approval behaviour, search, and a tool-call loop.
 - The provider set is closed in code. Config selects one by id but cannot name an
   executable, so a checked-in project file cannot decide which binary runs.
+- Checked 2026-10-17, these have public APIs and are still not stage backends.
+  `decant doctor` lists them as not connected. A key in the environment does not
+  change that.
+  - OpenRouter at `https://openrouter.ai/api/v1`. The public model list that day
+    included `google/gemini-4-argon` and `x-ai/grok-4.7`.
+  - Groq at `https://api.groq.com/openai/v1`. This is not the Grok CLI. Groq
+    Code CLI's `groq` binary is also not launched.
+  - Gemini API at `https://generativelanguage.googleapis.com/v1beta`, model id
+    `gemini-4-argon` in Google's own docs.
+- Factory Droid, Amp, and Hermes Agent were read the same day and not connected.
+  What stayed: a run starts read-only, a named provider is not a connection, and
+  the user brings the model host. Missions, memory, cron, and spawned subagents
+  stayed out.
 
 ## Execution
 
