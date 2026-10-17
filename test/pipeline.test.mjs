@@ -55,6 +55,8 @@ test('a Grok 4.7 plan uses every advertised effort and snaps architect max to xh
   const architect = plan.stages.find((stage) => stage.id === 'architect');
   assert.equal(architect.requestedEffort, 'max');
   assert.equal(architect.effortReason, 'effort-menu');
+  assert.equal(plan.callEstimate.unit, 'agent-invocations');
+  assert.equal(plan.invocationEstimate.unit, 'agent-invocations');
 });
 
 test('fast-lane plans put the maker first, cap effort, and avoid live reader fanout', () => {

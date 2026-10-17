@@ -132,7 +132,7 @@ function baseInvocationBounds(route) {
     }), { minimum: 0, maximum: 0 });
 }
 
-/** Describe the bounded Codex invocation plan. Counts are invocations, not price estimates. */
+/** Describe the bounded agent invocation plan. Counts are invocations, not price estimates. */
 export function buildRunPlan({ task, route, catalog, config, liveReaders = false } = {}) {
   const normalizedTask = nonEmptyTask(task);
   validateConfig(config);
@@ -170,7 +170,7 @@ export function buildRunPlan({ task, route, catalog, config, liveReaders = false
     minimum,
     maximum,
     conditionalInvocations: base.maximum - base.minimum,
-    unit: 'codex-exec-invocations',
+    unit: 'agent-invocations',
   };
 
   return {
@@ -209,7 +209,7 @@ export function decideAdvisor({
     },
   };
   const budgetEvidence = {
-    unit: 'codex-exec-invocations',
+    unit: 'agent-invocations',
     budget,
     usedBefore: used,
     // Keep this additive with advisorInvocations in every mode. The always-on
