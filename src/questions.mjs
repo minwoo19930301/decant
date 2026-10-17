@@ -109,6 +109,18 @@ function validateState(value, runId) {
     if (entry.status === 'answered') {
       question.answer = text(entry.answer, `Question ${definition.id} answer`, 8000);
       question.answeredAt = timestamp(entry.answeredAt, 'answeredAt');
+      if (entry.diverged !== undefined) {
+        if (typeof entry.diverged !== 'boolean') {
+          throw new TypeError(`Invalid divergence flag: ${definition.id}`);
+        }
+        question.diverged = entry.diverged;
+      }
+      if (entry.affectedStages !== undefined) {
+        if (!Array.isArray(entry.affectedStages) || entry.affectedStages.some((stage) => typeof stage !== 'string' || !stage.trim())) {
+          throw new TypeError(`Invalid affected stages: ${definition.id}`);
+        }
+        question.affectedStages = entry.affectedStages.map((stage) => stage.trim());
+      }
     } else if (entry.answer !== undefined || entry.answeredAt !== undefined) {
       throw new TypeError(`Pending question ${definition.id} cannot have an answer`);
     }
@@ -313,10 +325,20 @@ export async function answerQuestion({ cwd, runId, questionId, answer }) {
       if (question.answer === normalizedAnswer) return current;
       throw new Error(`Question ${questionId} has already been answered`);
     }
+    const diverged = typeof question.assumption === 'string' && normalizedAnswer !== question.assumption;
     return {
       ...current,
       questions: current.questions.map((entry) => entry.id === questionId
-        ? { ...entry, status: 'answered', answer: normalizedAnswer, answeredAt: new Date().toISOString() }
+        ? {
+          ...entry,
+          status: 'answered',
+          answer: normalizedAnswer,
+          answeredAt: new Date().toISOString(),
+          ...(typeof entry.assumption === 'string' ? {
+            diverged,
+            affectedStages: diverged ? ['maker', 'reviewer', 'explainer'] : [],
+          } : {}),
+        }
         : entry),
     };
   });

@@ -49,6 +49,10 @@ There is no timeout consent. Normal
 invocation budgets and advisor policy still apply; an unfunded required advisor
 can stop the run before it reaches the question gate.
 
+If a later answer differs from the recorded assumption, `decant questions`
+names the stages that already used that assumption and prints the `decant resume`
+command. Resume still starts a new child run; it does not edit the parent.
+
 Answers received before maker starts can inform implementation. Later answers
 can inform the subsequent reviewer and explainer when those stages refresh
 their context. They do not revise edits already made or restart a completed

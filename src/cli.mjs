@@ -482,7 +482,14 @@ function printQuestions(state, stdout) {
     if (question.assumption && question.status !== 'answered') {
       stdout.write(`  Assumption: ${question.assumption}\n`);
     }
-    if (question.status === 'answered') stdout.write(`  Answer: ${question.answer}\n`);
+    if (question.status === 'answered') {
+      stdout.write(`  Answer: ${question.answer}\n`);
+      if (question.diverged) {
+        stdout.write(`  Differs from assumption: ${question.assumption}\n`);
+        stdout.write(`  Affected stages: ${question.affectedStages.join(', ')}\n`);
+        stdout.write(`  Rerun with this answer: decant resume ${state.runId}\n`);
+      }
+    }
   }
   if (state.questions.some(question => question.status === 'pending')) {
     stdout.write(`Answer from another terminal: decant answer ${state.runId} <question-id> "<answer>"\n`);

@@ -138,6 +138,25 @@ test('posting is nonblocking, has no selected answer, and returns detached snaps
   assert.deepEqual(persisted.questions[0].options, ['Light', 'Dark']);
 });
 
+test('an answer that differs from the assumption records the affected stages', async (t) => {
+  const cwd = await workspace(t);
+  await openQuestions({ cwd, runId: RUN_ID, questions: [
+    { id: 'style', title: 'Which output style?', options: ['Plain', 'Color'] },
+  ] });
+  const same = await answerQuestion({ cwd, runId: RUN_ID, questionId: 'style', answer: 'Plain' });
+  assert.equal(same.questions[0].diverged, false);
+  assert.deepEqual(same.questions[0].affectedStages, []);
+
+  const cwd2 = await workspace(t);
+  await openQuestions({ cwd: cwd2, runId: RUN_ID, questions: [
+    { id: 'style', title: 'Which output style?', options: ['Plain', 'Color'] },
+  ] });
+  const changed = await answerQuestion({ cwd: cwd2, runId: RUN_ID, questionId: 'style', answer: 'Color' });
+  assert.equal(changed.questions[0].diverged, true);
+  assert.deepEqual(changed.questions[0].affectedStages, ['maker', 'reviewer', 'explainer']);
+  assert.equal((await readQuestions({ cwd: cwd2, runId: RUN_ID })).questions[0].diverged, true);
+});
+
 test('explicit free text survives process restart and leaves frozen run evidence untouched', async (t) => {
   const cwd = await workspace(t);
   const frozen = path.join(cwd, '.decant', 'runs', RUN_ID, 'run.json');
