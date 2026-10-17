@@ -175,6 +175,20 @@ const COMMAND_SPECS = Object.freeze({
   },
 });
 
+function missingPositionalMessage(command) {
+  if (command === 'route' || command === 'run' || command === 'review') {
+    return `${command} requires a task`;
+  }
+  if (command === 'answer') return 'answer requires a run id, a question id, and an answer';
+  return `${command} requires an argument`;
+}
+
+function extraPositionalMessage(command, maximum) {
+  if (maximum === 0) return `${command} does not accept positional arguments`;
+  const noun = maximum === 1 ? 'argument' : 'arguments';
+  return `${command} accepts at most ${maximum} positional ${noun}`;
+}
+
 /** Parse one command against its own option allowlist. */
 export function parseCommandLine(argv) {
   if (!Array.isArray(argv)) throw new TypeError('CLI arguments must be an array');
@@ -239,10 +253,10 @@ export function parseCommandLine(argv) {
   }
 
   if (!flags.help && positionals.length < spec.minPositionals) {
-    throw new Error(`${command} requires ${command === 'route' || command === 'run' ? 'a task' : 'an argument'}`);
+    throw new Error(missingPositionalMessage(command));
   }
   if (!flags.help && positionals.length > spec.maxPositionals) {
-    throw new Error(`${command} accepts at most ${spec.maxPositionals} positional argument`);
+    throw new Error(extraPositionalMessage(command, spec.maxPositionals));
   }
   return { command, positionals, flags };
 }

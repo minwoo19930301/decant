@@ -196,6 +196,18 @@ test('strict parser rejects unknown, duplicate, missing-value, and boolean-value
     () => parseCommandLine(['inspect', 'first', 'second']),
     /inspect accepts at most 1 positional argument/,
   );
+  assert.throws(
+    () => parseCommandLine(['init', 'extra']),
+    /init does not accept positional arguments/,
+  );
+  assert.throws(
+    () => parseCommandLine(['answer', 'run-id']),
+    /answer requires a run id, a question id, and an answer/,
+  );
+  assert.throws(
+    () => parseCommandLine(['review']),
+    /review requires a task/,
+  );
 });
 
 test('help bypasses required task validation without accepting unrelated options', () => {
