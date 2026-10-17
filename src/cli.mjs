@@ -247,17 +247,18 @@ export function parseCommandLine(argv) {
   return { command, positionals, flags };
 }
 
+function parseModelCallBudget(raw) {
+  const budget = typeof raw === 'number' ? raw : Number(raw);
+  if (!Number.isInteger(budget)) throw new Error(`Model-call budget must be an integer: ${raw}`);
+  if (budget < 1) throw new Error(`Model-call budget must be positive: ${raw}`);
+  return budget;
+}
+
 function assertRunnableFlags(flags) {
   if (flags.questionMode !== undefined && !['async', 'off'].includes(flags.questionMode)) {
     throw new Error('question-mode must be async or off');
   }
-  if (flags.budgetCalls !== undefined) {
-    const budget = Number(flags.budgetCalls);
-    if (!Number.isInteger(budget)) {
-      throw new Error(`Model-call budget must be an integer: ${flags.budgetCalls}`);
-    }
-    if (budget < 1) throw new Error(`Model-call budget must be positive: ${flags.budgetCalls}`);
-  }
+  if (flags.budgetCalls !== undefined) parseModelCallBudget(flags.budgetCalls);
   validateRoutingFlags({
     lane: flags.lane,
     timeBudgetMinutes: flags.timeBudgetMinutes,
@@ -296,9 +297,7 @@ export async function configAndCatalog(cwd, {
 
 export function validateRunBudget(plan, config, requested) {
   const raw = requested ?? config.limits?.maxModelCalls ?? 30;
-  const budget = typeof raw === 'number' ? raw : Number(raw);
-  if (!Number.isInteger(budget)) throw new Error(`Model-call budget must be an integer: ${raw}`);
-  if (budget < 1) throw new Error(`Model-call budget must be positive: ${raw}`);
+  const budget = parseModelCallBudget(raw);
   if (budget < plan.callEstimate.minimum) {
     throw new Error(`Model-call budget ${budget} is below the minimum ${plan.callEstimate.minimum}`);
   }
