@@ -78,6 +78,16 @@ export function renderContract(contract) {
     .join('\n');
 }
 
+function criterionMatches(check, entry) {
+  if (typeof check?.criterion !== 'string') return false;
+  const text = check.criterion.trim();
+  if (text === entry.id) return true;
+  if (!text.startsWith(entry.id)) return false;
+  // Only a space or colon separates an id from a reviewer's note. "_" and "."
+  // are not id characters, but they still continue the token ("auth_token").
+  return /[\s:]/.test(text.charAt(entry.id.length));
+}
+
 /**
  * Check a reviewer result against the declared contract.
  *
@@ -91,12 +101,10 @@ export function checkAgainstContract(contract, result) {
   const answers = new Map();
   for (const check of Array.isArray(result?.acceptance_checks) ? result.acceptance_checks : []) {
     // The reviewer is told to put the criterion id in `criterion`; accept an
-    // exact id, or a criterion string that starts with the id, so a reviewer that
-    // writes "single-file: works when opened directly" still resolves.
-    const declared = contract.criteria.find((entry) => (
-      check?.criterion === entry.id
-      || (typeof check?.criterion === 'string' && check.criterion.trim().startsWith(entry.id))
-    ));
+    // exact id, or a criterion string that starts with the id and a boundary,
+    // so a reviewer that writes "single-file: works when opened directly" still
+    // resolves.
+    const declared = contract.criteria.find((entry) => criterionMatches(check, entry));
     if (declared && !answers.has(declared.id)) answers.set(declared.id, check);
   }
 

@@ -126,6 +126,30 @@ test('an id-prefixed criterion string still resolves', () => {
   assert.equal(outcome.passed, true);
 });
 
+test('a shorter id does not consume a longer id that shares its prefix', () => {
+  const prefixed = validateContract({
+    version: 1,
+    criteria: [
+      { id: 'auth', risk: 'critical', requirement: 'authentication is required' },
+      { id: 'authn', risk: 'low', requirement: 'token format is documented' },
+      { id: 'open', risk: 'high', requirement: 'the file opens' },
+      { id: 'opens-directly', risk: 'low', requirement: 'no server is required' },
+    ],
+  });
+  const outcome = checkAgainstContract(prefixed, review([
+    { criterion: 'authn: token format documented', passed: true, evidence: 'e' },
+    { criterion: 'auth_token: session cookie set', passed: true, evidence: 'e' },
+    { criterion: 'auth.v2: header checked', passed: true, evidence: 'e' },
+    { criterion: 'opens-directly: no build step', passed: false, evidence: 'e' },
+  ]));
+  assert.deepEqual(outcome.blocking, ['auth: no answer from the reviewer']);
+  assert.deepEqual(outcome.gaps, [
+    'open: no answer from the reviewer',
+    'opens-directly: reviewer rejected it',
+  ]);
+  assert.equal(outcome.answered, 2);
+});
+
 test('the contract check ignores the reviewer\'s own verdict', () => {
   // A reviewer that says "pass" while rejecting a critical criterion must not be
   // taken at its word.
