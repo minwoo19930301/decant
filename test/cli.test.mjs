@@ -139,6 +139,38 @@ test('doctor --json stays parseable when Codex spawn fails', async () => {
   assert.equal(payload.error, undefined);
 });
 
+test('invalid route and run flags fail before catalog discovery', async () => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'decant-flags-'));
+  const output = captureOutput();
+  let discovered = false;
+  const context = {
+    cwd,
+    stdout: output.stream,
+    configAndCatalogImpl: async () => {
+      discovered = true;
+      throw new Error('catalog should not be contacted');
+    },
+  };
+
+  await assert.rejects(
+    main(['route', 'fix a typo', '--lane', 'turbo'], context),
+    /lane must be one of: auto, fast, full/,
+  );
+  await assert.rejects(
+    main(['route', 'fix a typo', '--lane', 'fast'], context),
+    /fast lane requires timeBudgetMinutes/,
+  );
+  await assert.rejects(
+    main(['run', 'fix a typo', '--budget-calls', '2x'], context),
+    /Model-call budget must be an integer: 2x/,
+  );
+  await assert.rejects(
+    main(['run', 'fix a typo', '--question-mode', 'auto'], context),
+    /question-mode must be async or off/,
+  );
+  assert.equal(discovered, false);
+});
+
 test('strict parser keeps boolean flags separate from following positional arguments', () => {
   assert.deepEqual(parseCommandLine(['route', '--json', 'fix typo']), {
     command: 'route',
