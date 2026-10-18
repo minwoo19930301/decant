@@ -1338,6 +1338,13 @@ export async function runPipeline({
       });
       const output = await readText(outputFile);
       if (!output.trim()) throw new Error(`${stageId} produced an empty output`);
+      const cost = {};
+      if (result?.usage && typeof result.usage === 'object' && !Array.isArray(result.usage)) {
+        cost.usage = result.usage;
+      }
+      if (typeof result?.totalCostUsd === 'number' && Number.isFinite(result.totalCostUsd)) {
+        cost.totalCostUsd = result.totalCostUsd;
+      }
       manifest.stages[stageId] = {
         id: stageId,
         title: stage.purpose,
@@ -1348,8 +1355,13 @@ export async function runPipeline({
         effort: stage.effort,
         durationMs: result?.durationMs ?? Date.now() - started,
         output,
+        ...cost,
       };
-      await recordEvent('stage.completed', { stage: stageId, durationMs: manifest.stages[stageId].durationMs });
+      await recordEvent('stage.completed', {
+        stage: stageId,
+        durationMs: manifest.stages[stageId].durationMs,
+        ...cost,
+      });
       return { result, output };
     } catch (error) {
       const timedOut = error?.result?.timedOut === true;
