@@ -10,6 +10,7 @@ import {
   extractOutput,
   OUTPUT_BEGIN,
   OUTPUT_END,
+  parseLooseJson,
   wrapPrompt,
 } from '../src/providers/contract.mjs';
 import { discoverKiroModels, kiroArgs, kiroProvider } from '../src/providers/kiro.mjs';
@@ -17,7 +18,9 @@ import { codexProvider } from '../src/providers/codex.mjs';
 import {
   GROK_47_EFFORTS,
   discoverGrokModels,
+  grokAnswer,
   grokArgs,
+  grokCost,
   grokProvider,
   parseGrokModelIds,
 } from '../src/providers/grok.mjs';
@@ -316,4 +319,85 @@ test('grok discovery attaches the full effort menu and a stage writes the JSON t
   assert.equal(seen.args[seen.args.indexOf('--reasoning-effort') + 1], 'low');
   assert.equal(seen.args[seen.args.indexOf('--permission-mode') + 1], 'plan');
   assert.equal(await readFile(outputFile, 'utf8'), 'pong\n');
+});
+
+test('grok CLI 1.0.52 structuredOutput wins over concatenated text, and the last object is kept', async (t) => {
+  const progress = '{"note":"스카우트 중입니다 } {아직"}';
+  const finalObject = {
+    summary: 'done',
+    facts: ['a'],
+    evidence: [],
+    open_questions: [],
+    questions: [],
+  };
+  const text = `${progress}${JSON.stringify(finalObject)}`;
+  assert.throws(() => JSON.parse(text), /Unexpected non-whitespace character after JSON/);
+  assert.deepEqual(parseLooseJson(text), finalObject);
+  assert.deepEqual(parseLooseJson(`note first\n${text}\ntrailing`), finalObject);
+
+  const envelope = {
+    text,
+    stopReason: 'end_turn',
+    sessionId: 'sess',
+    requestId: 'req',
+    cwd: '/tmp/repo',
+    thought: '',
+    usage: { input_tokens: 12, output_tokens: 34 },
+    num_turns: 2,
+    total_cost_usd: 0.0123,
+    total_cost_usd_ticks: 123,
+    modelUsage: { 'grok-4.7': { input_tokens: 12, output_tokens: 34 } },
+    structuredOutput: finalObject,
+  };
+  assert.equal(grokAnswer(envelope), JSON.stringify(finalObject));
+  assert.doesNotMatch(grokAnswer(envelope), /스카우트/);
+  assert.deepEqual(grokCost(envelope), {
+    usage: envelope.usage,
+    totalCostUsd: 0.0123,
+  });
+  assert.equal(
+    grokAnswer({ structured_output: '{"summary":"legacy"}', text: '{"summary":"ignored"}' }),
+    '{"summary":"legacy"}',
+  );
+
+  const sandbox = await mkdtemp(path.join(tmpdir(), 'decant-grok-envelope-'));
+  t.after(() => rm(sandbox, { recursive: true, force: true }));
+  const schemaFile = path.join(sandbox, 'schema.json');
+  await writeFile(schemaFile, JSON.stringify({
+    type: 'object',
+    properties: { summary: { type: 'string' } },
+  }));
+  const outputFile = path.join(sandbox, 'scout.json');
+  const recorded = await grokProvider.runStage({
+    prompt: 'scout',
+    cwd: sandbox,
+    model: 'grok-4.7',
+    effort: 'low',
+    sandbox: 'read-only',
+    outputFile,
+    outputSchema: schemaFile,
+    timeoutMs: 1_000,
+    execute: async () => ({ code: 0, stdout: JSON.stringify(envelope), stderr: '', durationMs: 4 }),
+  });
+  assert.deepEqual(JSON.parse(await readFile(outputFile, 'utf8')), finalObject);
+  assert.deepEqual(recorded.usage, envelope.usage);
+  assert.equal(recorded.totalCostUsd, 0.0123);
+
+  const textOnly = path.join(sandbox, 'text-only.json');
+  await grokProvider.runStage({
+    prompt: 'scout',
+    cwd: sandbox,
+    model: 'grok-4.7',
+    effort: 'low',
+    sandbox: 'read-only',
+    outputFile: textOnly,
+    outputSchema: schemaFile,
+    timeoutMs: 1_000,
+    execute: async () => ({
+      code: 0,
+      stdout: JSON.stringify({ text, stopReason: 'end_turn' }),
+      stderr: '',
+    }),
+  });
+  assert.deepEqual(JSON.parse(await readFile(textOnly, 'utf8')), finalObject);
 });

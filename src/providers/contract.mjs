@@ -133,11 +133,60 @@ function normaliseKey(key) {
 }
 
 /**
+ * The last complete top-level `{...}` in `body`.
+ *
+ * Braces inside JSON strings do not change depth. A Grok CLI `text` field can
+ * contain a progress object and then the final object with no separator;
+ * slicing from the first `{` to the last `}` is not one JSON value.
+ */
+function lastTopLevelJsonObject(body) {
+  let start = -1;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  let last = null;
+  for (let index = 0; index < body.length; index += 1) {
+    const char = body[index];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === '\\') {
+        escaped = true;
+        continue;
+      }
+      if (char === '"') inString = false;
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+    if (char === '{') {
+      if (depth === 0) start = index;
+      depth += 1;
+      continue;
+    }
+    if (char === '}' && depth > 0) {
+      depth -= 1;
+      if (depth === 0 && start >= 0) {
+        last = body.slice(start, index + 1);
+        start = -1;
+      }
+    }
+  }
+  if (!last) throw new SyntaxError('provider answer was requested as JSON but is not parseable');
+  return JSON.parse(last);
+}
+
+/**
  * Pull a JSON object out of a model's answer.
  *
- * Even when asked for bare JSON, a model may wrap it in a fence or add a
- * sentence. This trims those two habits and nothing else — it does not repair
- * malformed JSON, because guessing at broken syntax would hide a real failure.
+ * Even when asked for bare JSON, a model may wrap it in a fence, add a
+ * sentence, or concatenate a progress object with the final object. A single
+ * value is parsed as-is. Otherwise the last complete top-level object is used.
+ * Malformed JSON inside that object is still rejected.
  */
 export function parseLooseJson(text) {
   let body = String(text).trim();
@@ -146,10 +195,7 @@ export function parseLooseJson(text) {
   try {
     return JSON.parse(body);
   } catch {
-    const first = body.indexOf('{');
-    const last = body.lastIndexOf('}');
-    if (first >= 0 && last > first) return JSON.parse(body.slice(first, last + 1));
-    throw new SyntaxError('provider answer was requested as JSON but is not parseable');
+    return lastTopLevelJsonObject(body);
   }
 }
 
