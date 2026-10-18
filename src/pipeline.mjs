@@ -17,7 +17,7 @@ import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
 
 import { snapEffort } from './catalog.mjs';
-import { mapPool, runVerification } from './executor.mjs';
+import { mapPool, runVerification, spawnCapture } from './executor.mjs';
 import { DEFAULT_PROVIDER, resolveProvider } from './providers/index.mjs';
 import {
   architectPrompt,
@@ -56,6 +56,24 @@ const OUTPUTS = Object.freeze({
   report: 'report.html',
   questions: 'questions.json',
 });
+
+/** Git status outside `.decant`, or null when git cannot answer. */
+async function workspaceChanges(cwd) {
+  try {
+    const result = await spawnCapture('git', ['status', '--porcelain', '--untracked-files=all'], {
+      cwd,
+      timeoutMs: 10_000,
+    });
+    if (result.code !== 0) return null;
+    return result.stdout.split('\n').map((line) => line.trimEnd()).filter((line) => {
+      if (!line) return false;
+      const file = line.slice(3).trim();
+      return file !== '.decant' && !file.startsWith('.decant/') && !file.startsWith('.decant\\');
+    }).sort().join('\n');
+  } catch {
+    return null;
+  }
+}
 
 function nonEmptyTask(task) {
   const value = typeof task === 'string'
@@ -1533,6 +1551,7 @@ export async function runPipeline({
     };
     await recordEvent('questions.checked', { before: 'maker', ...questionSummary(questionState), requiredIds });
     if (maker.enabled !== false && requiredIds.length > 0) return await finishWaiting(scout, requiredIds);
+    const workspaceBefore = maker.enabled === false ? null : await workspaceChanges(root);
     if (maker.enabled === false) {
       const reason = 'SKIPPED: this request was classified as read-only.';
       await writeText(makerFile, reason);
@@ -1564,6 +1583,14 @@ export async function runPipeline({
         throw new Error(`first artifact did not change: ${firstArtifact.relative}`);
       }
       manifest.stages.maker.dependsOn = manifest.questions.requiredIds;
+      const workspaceAfter = await workspaceChanges(root);
+      if (workspaceBefore !== null && workspaceAfter !== null && workspaceBefore === workspaceAfter) {
+        const warning = 'maker finished without changing any workspace file';
+        manifest.stages.maker.warning = warning;
+        manifest.stages.maker.unchangedWorkspace = true;
+        manifest.risks.push(warning);
+        await recordEvent('maker.unchanged', { warning });
+      }
     }
 
     const verificationFile = path.join(runDir, OUTPUTS.verification);
@@ -1703,6 +1730,7 @@ export async function runPipeline({
     }
 
     manifest.risks = deriveRisks(scout, reviewerResult, verification, questionState);
+    if (manifest.stages.maker?.warning) manifest.risks.push(manifest.stages.maker.warning);
     manifest.nextSteps = deriveNextSteps(reviewerResult, verification);
     let payload = canonicalPayload({
       task: plan.task,

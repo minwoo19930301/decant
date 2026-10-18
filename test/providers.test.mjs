@@ -19,6 +19,7 @@ import {
   discoverGrokModels,
   grokArgs,
   grokProvider,
+  grokStageBlock,
   parseGrokModelIds,
 } from '../src/providers/grok.mjs';
 import { DEFAULT_PROVIDER, PROVIDER_IDS, resolveProvider } from '../src/providers/index.mjs';
@@ -269,7 +270,7 @@ test('grok passes each advertised effort and snaps max down to xhigh', () => {
   assert.equal(snapped[snapped.indexOf('--model') + 1], 'grok-4.7');
   assert.equal(snapped[snapped.indexOf('--reasoning-effort') + 1], 'xhigh');
   assert.ok(snapped.includes('--permission-mode'));
-  assert.equal(snapped[snapped.indexOf('--permission-mode') + 1], 'acceptEdits');
+  assert.equal(snapped[snapped.indexOf('--permission-mode') + 1], 'auto');
   assert.ok(!snapped.includes('--disable-web-search'));
   assert.ok(snapped.includes('--json-schema'));
   assert.throws(
@@ -316,4 +317,62 @@ test('grok discovery attaches the full effort menu and a stage writes the JSON t
   assert.equal(seen.args[seen.args.indexOf('--reasoning-effort') + 1], 'low');
   assert.equal(seen.args[seen.args.indexOf('--permission-mode') + 1], 'plan');
   assert.equal(await readFile(outputFile, 'utf8'), 'pong\n');
+});
+
+test('grok headless workspace-write uses auto, and cancelled or usage-limit results fail', async (t) => {
+  const writeArgs = grokArgs({
+    model: 'grok-4.7',
+    effort: 'medium',
+    sandbox: 'workspace-write',
+    promptFile: 'prompt.txt',
+  });
+  assert.equal(writeArgs[writeArgs.indexOf('--permission-mode') + 1], 'auto');
+
+  const cancelled = {
+    text: 'edit cancelled',
+    stopReason: 'cancelled',
+    num_turns: 3,
+    sessionId: 'sess',
+    requestId: 'req',
+  };
+  const sandbox = await mkdtemp(path.join(tmpdir(), 'decant-grok-cancel-'));
+  t.after(() => rm(sandbox, { recursive: true, force: true }));
+  await assert.rejects(
+    grokProvider.runStage({
+      prompt: 'edit',
+      cwd: sandbox,
+      model: 'grok-4.7',
+      effort: 'medium',
+      sandbox: 'workspace-write',
+      outputFile: path.join(sandbox, 'maker.md'),
+      timeoutMs: 1_000,
+      execute: async () => ({ code: 0, stdout: JSON.stringify(cancelled), stderr: '' }),
+    }),
+    (error) => {
+      assert.equal(error.code, 'GROK_CANCELLED');
+      assert.match(error.message, /stopReason cancelled/);
+      return true;
+    },
+  );
+
+  const limit = grokStageBlock({
+    code: 1,
+    stdout: '',
+    stderr: 'Error: usage limit reached for this plan',
+  });
+  assert.equal(limit.code, 'GROK_USAGE_LIMIT');
+  assert.match(limit.message, /Grok usage limit reached/);
+  await assert.rejects(
+    grokProvider.runStage({
+      prompt: 'edit',
+      cwd: sandbox,
+      model: 'grok-4.7',
+      effort: 'medium',
+      sandbox: 'workspace-write',
+      outputFile: path.join(sandbox, 'maker.md'),
+      timeoutMs: 1_000,
+      execute: async () => ({ code: 1, stdout: '', stderr: 'usage limit reached' }),
+    }),
+    /Grok usage limit reached/,
+  );
 });
