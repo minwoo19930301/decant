@@ -274,7 +274,10 @@ explainer, and reader at `low`; maker at `medium`; reviewer at `high`;
 architect at `xhigh`. Config may still say `max` or `ultra`. Those are not on
 this model's menu, so Decant snaps them down to `xhigh` and records
 `effort-menu`. The Grok sandbox is fail-open, and `doctor` reports that
-instead of calling the stage read-only in the kernel sense.
+instead of calling the stage read-only in the kernel sense. On Grok CLI
+1.0.52, headless `acceptEdits` cancels the edit tools, so a workspace-write
+stage asks for permission mode `auto`. That applies edits without an
+interactive prompt. It is still not a kernel sandbox.
 
 **…pin which model each role uses?**
 
