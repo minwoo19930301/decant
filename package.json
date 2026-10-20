@@ -28,6 +28,7 @@
     "claude-code",
     "kiro",
     "grok",
+    "muse",
     "agent-skills",
     "model-routing",
     "invocation-ceiling",

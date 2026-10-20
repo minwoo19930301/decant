@@ -10,6 +10,13 @@
   `xhigh` and the plan records `effort-menu`. The sandbox capability is
   `fail-open`; plan mode is requested for read-only stages and is not a kernel
   guarantee. Live Reader-10 through Grok is still unverified.
+- Muse Code is a stage provider. `provider: "muse"` runs `muse exec` and pins
+  Muse Spark 1.3 to the five efforts it advertises: `minimal`, `low`, `medium`,
+  `high`, and `xhigh`. A default route uses them by role. `max` and `ultra`
+  snap down to `xhigh` and the plan records `effort-menu`. The Muse OS sandbox
+  stays on; a read-only stage additionally loses the workspace write tools and
+  the shell. The provider's JSONL dialect was verified against the CLI's echo
+  provider; a live stage run on the Meta provider is still unverified.
 - Async questions in the CLI pipeline and host skills. The scout can post up to
   three structured questions; independent planning continues while required
   answers gate the maker. Legacy `open_questions` remain compatible and optional.

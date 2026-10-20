@@ -21,10 +21,18 @@ import {
   grokProvider,
   parseGrokModelIds,
 } from '../src/providers/grok.mjs';
+import {
+  MUSE_SPARK_EFFORTS,
+  museAnswer,
+  museArgs,
+  museProvider,
+  parseMuseEvents,
+  resolveMuseEffort,
+} from '../src/providers/muse.mjs';
 import { DEFAULT_PROVIDER, PROVIDER_IDS, resolveProvider } from '../src/providers/index.mjs';
 
 test('every registered provider satisfies the stage contract', () => {
-  assert.deepEqual(PROVIDER_IDS, ['codex', 'kiro', 'grok']);
+  assert.deepEqual(PROVIDER_IDS, ['codex', 'kiro', 'grok', 'muse']);
   for (const id of PROVIDER_IDS) {
     const provider = assertProvider(resolveProvider(id));
     assert.equal(provider.id, id);
@@ -32,7 +40,7 @@ test('every registered provider satisfies the stage contract', () => {
     assert.ok(provider.capabilities.sandbox);
   }
   assert.equal(resolveProvider(), resolveProvider(DEFAULT_PROVIDER));
-  assert.throws(() => resolveProvider('anthropic'), /supported: codex, kiro, grok/);
+  assert.throws(() => resolveProvider('anthropic'), /supported: codex, kiro, grok, muse/);
 });
 
 test('providers declare what they can and cannot enforce', () => {
@@ -45,6 +53,8 @@ test('providers declare what they can and cannot enforce', () => {
   assert.equal(kiroProvider.capabilities.sandbox, 'tool-allowlist');
   assert.equal(grokProvider.capabilities.outputSchema, 'native');
   assert.equal(grokProvider.capabilities.sandbox, 'fail-open');
+  assert.equal(museProvider.capabilities.outputSchema, 'native');
+  assert.equal(museProvider.capabilities.sandbox, 'native');
 });
 
 test('sandbox levels map to tool grants, and unknown levels are refused', () => {
@@ -315,5 +325,101 @@ test('grok discovery attaches the full effort menu and a stage writes the JSON t
   assert.equal(seen.command, 'grok');
   assert.equal(seen.args[seen.args.indexOf('--reasoning-effort') + 1], 'low');
   assert.equal(seen.args[seen.args.indexOf('--permission-mode') + 1], 'plan');
+  assert.equal(await readFile(outputFile, 'utf8'), 'pong\n');
+});
+
+test('muse passes each advertised effort and snaps max and ultra down to xhigh', () => {
+  assert.deepEqual([...MUSE_SPARK_EFFORTS], ['minimal', 'low', 'medium', 'high', 'xhigh']);
+  for (const effort of MUSE_SPARK_EFFORTS) {
+    assert.equal(resolveMuseEffort('muse-spark-1.3', effort), effort);
+    const args = museArgs({
+      model: 'muse-spark-1.3',
+      effort,
+      sandbox: 'read-only',
+      promptFile: 'prompt.txt',
+    });
+    assert.equal(args[args.indexOf('--reasoning-effort') + 1], effort);
+  }
+  // The CLI flag accepts max and ultra, but the Muse Spark API rejects
+  // them, so they snap to xhigh before the CLI sees them. `none` is not on
+  // the menu either: the model always reasons.
+  assert.equal(resolveMuseEffort('muse-spark-1.3', 'max'), 'xhigh');
+  assert.equal(resolveMuseEffort('auto', 'ultra'), 'xhigh');
+  assert.equal(resolveMuseEffort('muse-spark-1.2', undefined), 'high');
+  assert.equal(resolveMuseEffort('some-other-model', 'max'), 'max');
+});
+
+test('muse read-only stages lose both write channels and never wait for approval', () => {
+  const readOnly = museArgs({ model: 'auto', sandbox: 'read-only', promptFile: 'p' });
+  assert.equal(readOnly[readOnly.indexOf('--model') + 1], 'muse-spark-1.3');
+  assert.ok(readOnly.includes('--disable-write'));
+  assert.ok(readOnly.includes('--disable-shell'));
+  assert.ok(readOnly.includes('--disable-web-tools'));
+  assert.equal(readOnly[readOnly.indexOf('--approval-mode') + 1], 'never');
+  assert.ok(readOnly.includes('--disable-request-user-input'));
+  // The sandbox itself is never turned off.
+  assert.ok(!readOnly.includes('--yolo'));
+  assert.ok(!readOnly.includes('--disable-sandbox'));
+
+  const write = museArgs({ model: 'auto', sandbox: 'workspace-write', search: true, promptFile: 'p' });
+  assert.ok(!write.includes('--disable-write'));
+  assert.ok(!write.includes('--disable-shell'));
+  assert.ok(!write.includes('--disable-web-tools'));
+  assert.throws(
+    () => museArgs({ model: 'auto', sandbox: 'danger-full-access', promptFile: 'p' }),
+    /does not support sandbox danger-full-access/,
+  );
+});
+
+test('muse answer comes only from the primary run output deltas', () => {
+  const stdout = [
+    '{"payload_type":"session.run.linked","payload":{"run_stream":{"id":"run-1"}}}',
+    '{"payload_type":"turn.input.user","payload":{"prompt":"say pong"}}',
+    '{"payload_type":"run.output.delta","payload":{"run_stream":{"id":"run-2"},"text":"reminder noise"}}',
+    '{"payload_type":"run.output.delta","payload":{"run_stream":{"id":"run-1"},"text":"po"}}',
+    'not json at all',
+    '{"payload_type":"run.output.delta","payload":{"run_stream":{"id":"run-1"},"text":"ng"}}',
+  ].join('\n');
+  assert.equal(museAnswer(parseMuseEvents(stdout)), 'pong');
+  assert.throws(() => museAnswer(parseMuseEvents('')), /no run\.output\.delta/);
+});
+
+test('muse discovery pins Muse Spark 1.3 and a stage writes the streamed text', async (t) => {
+  const catalog = await museProvider.discoverCatalog({});
+  assert.deepEqual(catalog.roles.frontier.supportedEfforts, [...MUSE_SPARK_EFFORTS]);
+  assert.equal(catalog.roles.frontier.model, 'muse-spark-1.3');
+  assert.equal(catalog.roles.frontier.effort, 'xhigh');
+  assert.equal(catalog.roles.balanced.effort, 'medium');
+  assert.equal(catalog.roles.economy.effort, 'low');
+
+  const sandbox = await mkdtemp(path.join(tmpdir(), 'decant-muse-'));
+  t.after(() => rm(sandbox, { recursive: true, force: true }));
+  const outputFile = path.join(sandbox, 'stage.md');
+  let seen;
+  await museProvider.runStage({
+    prompt: 'say pong',
+    cwd: sandbox,
+    model: 'muse-spark-1.3',
+    effort: 'low',
+    sandbox: 'read-only',
+    outputFile,
+    timeoutMs: 1_000,
+    execute: async (command, args) => {
+      seen = { command, args };
+      return {
+        code: 0,
+        stdout: [
+          '{"payload_type":"session.run.linked","payload":{"run_stream":{"id":"run-1"}}}',
+          '{"payload_type":"run.output.delta","payload":{"run_stream":{"id":"run-1"},"text":"pong"}}',
+          '',
+        ].join('\n'),
+        stderr: '',
+      };
+    },
+  });
+  assert.equal(seen.command, 'muse');
+  assert.equal(seen.args[0], 'exec');
+  assert.equal(seen.args[seen.args.indexOf('--reasoning-effort') + 1], 'low');
+  assert.ok(seen.args.includes('--disable-write'));
   assert.equal(await readFile(outputFile, 'utf8'), 'pong\n');
 });

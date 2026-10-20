@@ -14,7 +14,7 @@ This preview bundles eight focused, on-demand skills:
 - `decant-release`: produce release and artifact proof;
 - `decant-skill-lab`: test triggers and compare a skill with its baseline.
 
-The pack follows the Agent Skills layout with two plugin manifests: `.codex-plugin/plugin.json` for Codex and `.claude-plugin/plugin.json` for Claude Code. It can guide work in Codex, Claude Code, or Grok Build and call an installed `decant` CLI, but it does not switch the model of the host's current task or provide a native app UI or MCP server. Decant model stages launch the configured provider: `codex`, `kiro`, or `grok`. `decant-spec` uses async question mode and waits only for an irreversible action.
+The pack follows the Agent Skills layout with two plugin manifests: `.codex-plugin/plugin.json` for Codex and `.claude-plugin/plugin.json` for Claude Code. It can guide work in Codex, Claude Code, or Grok Build and call an installed `decant` CLI, but it does not switch the model of the host's current task or provide a native app UI or MCP server. Decant model stages launch the configured provider: `codex`, `kiro`, `grok`, or `muse`. `decant-spec` uses async question mode and waits only for an irreversible action.
 
 In Claude Code, install the pack from the repository marketplace:
 
