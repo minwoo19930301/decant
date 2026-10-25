@@ -57,8 +57,8 @@
     },
     "version": { "const": 1 },
     "provider": {
-      "enum": ["codex", "kiro", "grok"],
-      "description": "Closed provider set. grok launches the grok CLI and uses Grok 4.7 efforts low, medium, high, and xhigh."
+      "enum": ["codex", "kiro", "grok", "muse"],
+      "description": "Closed provider set. grok launches the grok CLI and uses Grok 4.7 efforts low, medium, high, and xhigh. muse launches Muse Code and uses Muse Spark efforts minimal, low, medium, high, and xhigh."
     },
     "questions": {
       "type": "object",

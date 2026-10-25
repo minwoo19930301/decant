@@ -148,7 +148,7 @@ schedulers, a TUI. Full lineage with links and licence notes:
 
 ## Start here
 
-You need Node 20+ and one agent CLI on your `PATH` — `codex`, `kiro-cli`, or `grok`.
+You need Node 20+ and one agent CLI on your `PATH` — `codex`, `kiro-cli`, `grok`, or `muse`.
 
 ```bash
 git clone https://github.com/minwoo19930301/decant.git
@@ -260,7 +260,7 @@ Put this in `decant.config.json`:
 { "version": 1, "provider": "kiro" }
 ```
 
-`codex` is the default. `kiro` and `grok` are the other two. `decant doctor` confirms the switch.
+`codex` is the default. `kiro`, `grok`, and `muse` are the others. `decant doctor` confirms the switch.
 
 **…run stages on Grok 4.7, using every advertised effort?**
 
@@ -275,6 +275,22 @@ architect at `xhigh`. Config may still say `max` or `ultra`. Those are not on
 this model's menu, so Decant snaps them down to `xhigh` and records
 `effort-menu`. The Grok sandbox is fail-open, and `doctor` reports that
 instead of calling the stage read-only in the kernel sense.
+
+**…run stages on Muse Spark, using every advertised effort?**
+
+```json
+{ "version": 1, "provider": "muse" }
+```
+
+Muse Spark 1.3 is one model with five reasoning efforts on the Meta Model
+API: `minimal`, `low`, `medium`, `high` (the model default), and `xhigh`.
+A default route uses them by role: economy stages at `low`, balanced at
+`medium`, frontier at `xhigh`. Config may still say `max` or `ultra`. The
+Muse Code CLI flag accepts them, but the API rejects them for Muse Spark,
+so Decant snaps them down to `xhigh` and records `effort-menu`. Stages run
+through `muse exec` with its OS sandbox left on — the adapter never passes
+`--yolo` or `--disable-sandbox` — and a read-only stage additionally loses
+both write channels, the workspace file tools and the shell.
 
 **…pin which model each role uses?**
 
