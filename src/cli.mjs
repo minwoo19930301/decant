@@ -64,7 +64,7 @@ Safety:
   --jev sends only the task text to TypeSafe for advisory judgment (one request).
   Jev never grants permissions; missing keys/errors use deterministic routing.
 
-Backend: config "provider" selects codex, kiro, or grok. Run doctor to see which one is
+Backend: config "provider" selects codex, kiro, grok, or muse. Run doctor to see which one is
 active and what it can enforce. Reports are written in Korean.
 Run artifacts: .decant/runs/<run-id>/
 `;

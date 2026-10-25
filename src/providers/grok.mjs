@@ -136,15 +136,32 @@ export function grokStageBlock(result, payload = null) {
   return null;
 }
 
+function structuredText(value) {
+  if (value === undefined || value === null) return null;
+  return typeof value === 'string' ? value : JSON.stringify(value);
+}
+
+/** Cost fields the Grok CLI 1.0.52 envelope reports. Absent fields stay absent. */
+export function grokCost(payload) {
+  const cost = {};
+  if (payload?.usage && typeof payload.usage === 'object' && !Array.isArray(payload.usage)) {
+    cost.usage = payload.usage;
+  }
+  if (typeof payload?.total_cost_usd === 'number' && Number.isFinite(payload.total_cost_usd)) {
+    cost.totalCostUsd = payload.total_cost_usd;
+  }
+  return cost;
+}
+
 export function grokAnswer(payload) {
   if (!payload || typeof payload !== 'object') {
     throw new TypeError('grok JSON result is not an object');
   }
-  if (payload.structured_output !== undefined && payload.structured_output !== null) {
-    return typeof payload.structured_output === 'string'
-      ? payload.structured_output
-      : JSON.stringify(payload.structured_output);
-  }
+  // CLI 1.0.52 writes `structuredOutput` (camelCase object). Older envelopes
+  // used `structured_output`. Prefer the current key, then the old one.
+  const structured = structuredText(payload.structuredOutput)
+    ?? structuredText(payload.structured_output);
+  if (structured !== null) return structured;
   if (typeof payload.text === 'string') return payload.text;
   if (typeof payload.result === 'string') return payload.result;
   throw new Error('grok JSON result has no text');
@@ -220,13 +237,14 @@ export const grokProvider = assertProvider({
     }
     if (!payload) throw new SyntaxError('grok did not emit a JSON result');
     const answer = grokAnswer(payload);
+    const cost = grokCost(payload);
     if (!schemaText) {
       await writeFile(resolvedOutput, answer.endsWith('\n') ? answer : `${answer}\n`, 'utf8');
-      return result;
+      return { ...result, ...cost };
     }
     const schema = JSON.parse(schemaText);
     const { value, renamed } = coerceToSchema(parseLooseJson(answer), schema);
     await writeFile(resolvedOutput, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
-    return { ...result, schemaRepairs: renamed };
+    return { ...result, ...cost, schemaRepairs: renamed };
   },
 });

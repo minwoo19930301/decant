@@ -10,6 +10,15 @@ reasoning effort `low` / `medium` / `high` / `xhigh`를 모두 라우팅에 쓴�
 read-only stage도 커널이 쓰기를 막았다고 보고하지 않는다. Reader-10을 Grok으로
 끝낸 종단간 검증은 아직 없다. 아래 2026-07 문장은 그 날짜의 상태다.
 
+같은 날 `provider: "muse"`도 stage 실행기로 추가됐다. Meta의 Muse Code CLI
+(`muse exec`)를 띄우고 모델은 `muse-spark-1.3`으로 고정한다. Meta Model API가
+광고하는 reasoning effort `minimal` / `low` / `medium` / `high` / `xhigh`를
+모두 라우팅에 쓴다. CLI 플래그는 `max`와 `ultra`도 받지만 API가 Muse Spark에
+대해 거부하므로 `xhigh`로 내린다. Muse 자체 OS 샌드박스는 끄지 않고,
+read-only stage에서는 파일 쓰기 도구와 셸을 추가로 끈다. JSONL 이벤트 방언은
+실제 바이너리(Muse Code 1.4.10)의 echo provider로 검증했고 `decant doctor`와
+route까지 통과했지만, Meta 실모델로 stage를 끝낸 종단간 검증은 아직 없다.
+
 ## 먼저 읽을 결론
 
 현재 Decant의 고정 `v0.1.1` 릴리스는 **Relay10 이름으로

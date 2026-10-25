@@ -1,6 +1,7 @@
 import { codexProvider } from './codex.mjs';
 import { grokProvider } from './grok.mjs';
 import { kiroProvider } from './kiro.mjs';
+import { museProvider } from './muse.mjs';
 
 export { assertProvider, extractOutput, wrapPrompt } from './contract.mjs';
 
@@ -8,6 +9,7 @@ export const PROVIDERS = Object.freeze({
   codex: codexProvider,
   kiro: kiroProvider,
   grok: grokProvider,
+  muse: museProvider,
 });
 
 export const PROVIDER_IDS = Object.freeze(Object.keys(PROVIDERS));
