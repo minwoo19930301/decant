@@ -117,6 +117,33 @@ test('doctor reports an invalid config without probing a fallback provider', asy
   assert.doesNotMatch(text, /provider codex/);
 });
 
+test('doctor tells Grok users that workspace-write is permission-mode auto', async () => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'decant-doctor-grok-'));
+  await writeFile(path.join(cwd, 'decant.config.json'), '{"version":1,"provider":"grok"}\n');
+  const output = captureOutput();
+  const code = await main(['doctor'], {
+    cwd,
+    stdout: output.stream,
+    spawnCaptureImpl: async () => ({ code: 0, stdout: 'grok 1.0.52\n', stderr: '' }),
+    configAndCatalogImpl: async () => ({
+      catalog: { roles: { economy: { model: 'grok-4.7', effort: 'low' } } },
+    }),
+  });
+  assert.equal(code, 0);
+  assert.match(output.read(), /permission-mode auto/);
+  assert.match(output.read(), /acceptEdits cancels edits/);
+  assert.match(output.read(), /not a kernel sandbox/);
+
+  const jsonOut = captureOutput();
+  await main(['doctor', '--json'], {
+    cwd,
+    stdout: jsonOut.stream,
+    spawnCaptureImpl: async () => ({ code: 0, stdout: 'grok 1.0.52\n', stderr: '' }),
+    configAndCatalogImpl: async () => ({ catalog: { roles: {} } }),
+  });
+  assert.equal(JSON.parse(jsonOut.read()).provider.workspaceWritePermission, 'auto');
+});
+
 test('doctor --json stays parseable when Codex spawn fails', async () => {
   const output = captureOutput();
   const context = {

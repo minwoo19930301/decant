@@ -28,13 +28,17 @@ export const GROK_47_CATALOG_ENTRY = Object.freeze({
 });
 
 /**
- * Permission mode is a request, not a kernel sandbox. Grok's own sandbox is
- * fail-open, so a read-only stage here is "plan mode was requested", not
- * "writes were prevented".
+ * Permission mode is a request, not a kernel sandbox.
+ *
+ * Grok CLI 1.0.52 headless (`--prompt-file` plus `--output-format json`)
+ * cancels edit tools under `acceptEdits` and `dontAsk` (`stopReason`
+ * "cancelled", no diff). `auto` applies the edits and ends with `end_turn`.
+ * `auto` does not ask before each edit, and it is still not a kernel sandbox.
+ * Read-only stages request `plan`, which is also not a write lock.
  */
-const PERMISSION_MODE = Object.freeze({
+export const GROK_PERMISSION_MODE = Object.freeze({
   'read-only': 'plan',
-  'workspace-write': 'acceptEdits',
+  'workspace-write': 'auto',
 });
 
 export function resolveGrokEffort(model, effort) {
@@ -52,7 +56,7 @@ export function grokArgs({
   promptFile,
   schemaText,
 }) {
-  const permission = PERMISSION_MODE[sandbox];
+  const permission = GROK_PERMISSION_MODE[sandbox];
   if (!permission) throw new RangeError(`grok provider does not support sandbox ${sandbox}`);
   if (!promptFile) throw new TypeError('grok provider requires a prompt file');
   const id = !model || model === 'auto' ? GROK_47_ID : String(model);
@@ -110,6 +114,26 @@ export function parseGrokResult(stdout) {
     if (start < 0 || end <= start) throw new SyntaxError('grok did not emit a JSON result');
     return JSON.parse(text.slice(start, end + 1));
   }
+}
+
+/** A short failure for a usage-limit message or a cancelled headless edit. */
+export function grokStageBlock(result, payload = null) {
+  const blob = [result?.stderr, result?.stdout, payload?.text, payload?.error, payload?.message]
+    .filter((part) => typeof part === 'string')
+    .join('\n');
+  if (/usage limit/i.test(blob)) {
+    const error = new Error('Grok usage limit reached. This stage did not run. Check the Grok plan or wait for the limit to reset.');
+    error.code = 'GROK_USAGE_LIMIT';
+    error.result = result;
+    return error;
+  }
+  if (payload?.stopReason === 'cancelled') {
+    const error = new Error('Grok cancelled the stage before editing (stopReason cancelled).');
+    error.code = 'GROK_CANCELLED';
+    error.result = result;
+    return error;
+  }
+  return null;
 }
 
 function structuredText(value) {
@@ -196,6 +220,14 @@ export const grokProvider = assertProvider({
       schemaText,
     });
     const result = await execute(EXECUTABLE, args, { cwd, timeoutMs });
+    let payload = null;
+    try {
+      payload = parseGrokResult(result.stdout);
+    } catch {
+      payload = null;
+    }
+    const blocked = grokStageBlock(result, payload);
+    if (blocked) throw blocked;
     if (result.code !== 0) {
       const error = new Error(
         `Grok stage failed (${result.code}): ${String(result.stderr ?? '').slice(-1200)}`,
@@ -203,7 +235,7 @@ export const grokProvider = assertProvider({
       error.result = result;
       throw error;
     }
-    const payload = parseGrokResult(result.stdout);
+    if (!payload) throw new SyntaxError('grok did not emit a JSON result');
     const answer = grokAnswer(payload);
     const cost = grokCost(payload);
     if (!schemaText) {

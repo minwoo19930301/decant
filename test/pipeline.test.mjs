@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import { mkdir, mkdtemp, open, symlink } from 'node:fs/promises';
+import { promisify } from 'node:util';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -15,6 +17,8 @@ import {
 } from '../src/pipeline.mjs';
 import { routeTask } from '../src/router.mjs';
 import { readJson, readText, writeText } from '../src/utils.mjs';
+
+const exec = promisify(execFile);
 
 const catalog = {
   roles: {
@@ -789,4 +793,46 @@ test('clock failure occurs before any workspace or reclaim lock is created', asy
   );
   await assertMissing(lockFile);
   await assertMissing(`${lockFile}.reclaim`);
+});
+
+test('maker records a warning when it changes no workspace file', async () => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'decant-maker-unchanged-'));
+  await writeText(path.join(cwd, 'README.md'), 'start\n');
+  await exec('git', ['init'], { cwd });
+  await exec('git', ['add', 'README.md'], { cwd });
+  await exec('git', ['-c', 'user.email=test@example.com', '-c', 'user.name=test', 'commit', '-m', 'init'], { cwd });
+  const taskText = 'Implement and test a small CLI flag';
+  const result = await runPipeline({
+    task: taskText,
+    cwd,
+    config: structuredClone(DEFAULT_CONFIG),
+    catalog,
+    route: routeTask(taskText, { advisorMode: 'never' }),
+    runCodexImpl: async (options) => {
+      const stage = path.basename(options.outputFile);
+      let output = 'The requested CLI flag is implemented. Tests passed. Remaining risk is platform compatibility. Next, inspect the report.';
+      if (stage === 'scout.json') {
+        output = JSON.stringify({
+          summary: 'inspected',
+          facts: ['node'],
+          evidence: [{ title: 'CLI', url: 'src/cli.mjs', excerpt: 'parser' }],
+          open_questions: [],
+          questions: [],
+        });
+      }
+      if (stage === 'reviewer.json') {
+        output = JSON.stringify({
+          verdict: 'pass',
+          summary: 'ok',
+          findings: [],
+          acceptance_checks: [{ criterion: 'flag', passed: true, evidence: 'maker.md' }],
+        });
+      }
+      await writeText(options.outputFile, output);
+      return { code: 0, durationMs: 1, stdout: '', stderr: '' };
+    },
+  });
+  assert.equal(result.manifest.stages.maker.warning, 'maker finished without changing any workspace file');
+  assert.equal(result.manifest.stages.maker.unchangedWorkspace, true);
+  assert.ok(result.manifest.risks.includes('maker finished without changing any workspace file'));
 });

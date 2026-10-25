@@ -587,6 +587,7 @@ export async function main(argv = process.argv.slice(2), context = {}) {
         displayName: selected.displayName,
         executable: selected.executable,
         capabilities: { ...selected.capabilities },
+        ...(selected.id === 'grok' ? { workspaceWritePermission: 'auto' } : {}),
       },
       judgment: {
         provider: 'jev', enabledBy: '--jev',
@@ -604,6 +605,9 @@ export async function main(argv = process.argv.slice(2), context = {}) {
       stdout.write(`${nodeOk ? 'PASS' : 'FAIL'} Node ${result.node}\n`);
       stdout.write(`INFO provider ${result.provider.id} (${result.provider.displayName}); available: ${PROVIDER_IDS.join(', ')}\n`);
       stdout.write(`INFO sandbox=${result.provider.capabilities.sandbox} outputSchema=${result.provider.capabilities.outputSchema}\n`);
+      if (result.provider.id === 'grok') {
+        stdout.write('INFO grok workspace-write uses permission-mode auto. Headless acceptEdits cancels edits. auto applies edits without an interactive prompt and is not a kernel sandbox.\n');
+      }
       stdout.write(`${backend.code === 0 ? 'PASS' : 'FAIL'} ${result.provider.executable} ${result.backend}\n`);
       for (const [role, selectedRole] of Object.entries(result.roles ?? {})) {
         stdout.write(`PASS ${role}: ${selectedRole.model}/${selectedRole.effort}\n`);
