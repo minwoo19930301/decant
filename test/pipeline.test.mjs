@@ -133,6 +133,43 @@ test('fast lane makes the maker the first model call and proves the primary arti
   assert.match(await readText(path.join(result.runDir, 'summary.md')), /Fast-lane run/);
 });
 
+test('a stage records provider usage and cost when the backend reports them', async () => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'decant-usage-'));
+  const route = routeTask(task, {
+    lane: 'fast',
+    timeBudgetMinutes: 10,
+    firstArtifact: 'src/cli.mjs',
+  });
+  const usage = { input_tokens: 12, output_tokens: 34 };
+  const result = await runPipeline({
+    task,
+    cwd,
+    config: structuredClone(DEFAULT_CONFIG),
+    catalog,
+    route,
+    monotonicNow: () => 0,
+    runCodexImpl: async (options) => {
+      if (options.outputFile.endsWith('maker.md')) {
+        await writeText(path.join(cwd, 'src', 'cli.mjs'), 'console.log("ready");\n');
+        await writeText(options.outputFile, 'Primary CLI artifact implemented and smoke-ready.');
+        return { code: 0, durationMs: 4, usage, totalCostUsd: 0.0123, stdout: '', stderr: '' };
+      }
+      await writeText(options.outputFile, JSON.stringify({
+        verdict: 'pass', summary: 'Primary artifact exists.', findings: [],
+        acceptance_checks: [{ criterion: 'Primary artifact changed', passed: true, evidence: 'src/cli.mjs' }],
+      }));
+      return { code: 0, durationMs: 1, stdout: '', stderr: '' };
+    },
+  });
+  assert.deepEqual(result.manifest.stages.maker.usage, usage);
+  assert.equal(result.manifest.stages.maker.totalCostUsd, 0.0123);
+  assert.equal(result.manifest.stages.reviewer.usage, undefined);
+  const events = (await readText(path.join(result.runDir, 'events.jsonl'))).trim().split('\n').map((line) => JSON.parse(line));
+  const completed = events.find((event) => event.type === 'stage.completed' && event.stage === 'maker');
+  assert.deepEqual(completed.usage, usage);
+  assert.equal(completed.totalCostUsd, 0.0123);
+});
+
 test('fast lane stops when the declared primary artifact did not change', async () => {
   const cwd = await mkdtemp(path.join(os.tmpdir(), 'decant-fast-gate-'));
   await writeText(path.join(cwd, 'src', 'cli.mjs'), 'console.log("old");\n');
