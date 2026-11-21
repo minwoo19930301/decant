@@ -702,3 +702,28 @@ test('review refuses an output path inside the .decant evidence directory', asyn
   assert.equal(stages, 0);
   assert.equal(await readFile(frozen, 'utf8'), '<p>frozen</p>');
 });
+
+test('report output cannot overwrite any other frozen artifact in the run directory', async () => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'decant-report-artifact-'));
+  const runDir = path.join(cwd, '.decant', 'runs', '20260713T000000123Z-1234abcd');
+  await mkdir(runDir, { recursive: true });
+  await writeText(path.join(runDir, 'scout.json'), '{}');
+  const alias = path.join(cwd, 'alias');
+  await symlink(runDir, alias);
+
+  for (const output of [
+    path.join(runDir, 'scout.json'),
+    path.join(runDir, 'readers.json'),
+    path.join(alias, 'scout.json'),
+  ]) {
+    assert.throws(() => resolveReportOutput(cwd, runDir, output), /frozen run directory/);
+  }
+  assert.equal(
+    resolveReportOutput(cwd, runDir, path.join(runDir, 'report.regenerated.html')),
+    path.join(runDir, 'report.regenerated.html'),
+  );
+  assert.equal(
+    resolveReportOutput(cwd, runDir, 'exports/report.html'),
+    path.join(cwd, 'exports', 'report.html'),
+  );
+});
