@@ -53,7 +53,23 @@ test('formatCliError turns missing executables into actionable PATH guidance', (
     syscall: 'spawn codex',
   });
   assert.match(formatCliError(missing), /codex not found on PATH/);
-  assert.match(formatCliError(missing), /authenticated Codex CLI/);
+  assert.match(formatCliError(missing), /Install the Codex CLI/);
+  for (const [command, hint] of [['kiro-cli', /Install the Kiro CLI/], ['grok', /Install the Grok CLI/]]) {
+    const missingProvider = Object.assign(new Error(`spawn ${command} ENOENT`), {
+      code: 'ENOENT',
+      path: command,
+      syscall: `spawn ${command}`,
+    });
+    assert.match(formatCliError(missingProvider), new RegExp(`${command} not found on PATH`));
+    assert.match(formatCliError(missingProvider), hint);
+    assert.doesNotMatch(formatCliError(missingProvider), /Codex CLI/);
+  }
+  const unknown = Object.assign(new Error('spawn custom-agent ENOENT'), {
+    code: 'ENOENT',
+    path: 'custom-agent',
+    syscall: 'spawn custom-agent',
+  });
+  assert.match(formatCliError(unknown), /Install custom-agent, then re-run decant doctor/);
   const missingFile = Object.assign(
     new Error("ENOENT: no such file or directory, open '/tmp/run.json'"),
     { code: 'ENOENT', path: '/tmp/run.json', syscall: 'open' },

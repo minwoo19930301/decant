@@ -19,7 +19,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { discoverCatalog } from './catalog.mjs';
-import { DEFAULT_PROVIDER, PROVIDER_IDS, resolveProvider } from './providers/index.mjs';
+import { DEFAULT_PROVIDER, PROVIDER_IDS, PROVIDERS, resolveProvider } from './providers/index.mjs';
 import { CONFIG_FILENAME, DEFAULT_CONFIG, loadConfig } from './config.mjs';
 import { spawnCapture } from './executor.mjs';
 import { routeTask, routeWithJudgment } from './router.mjs';
@@ -77,6 +77,12 @@ export function nodeVersionSupported(version = process.versions.node) {
   return Number.isInteger(major) && major >= 20;
 }
 
+function installHint(command) {
+  const provider = Object.values(PROVIDERS).find((item) => item.executable === command);
+  if (provider) return `Install the ${provider.displayName}, then re-run decant doctor.`;
+  return `Install ${command}, then re-run decant doctor.`;
+}
+
 /** Human-readable CLI error for missing executables and other failures. */
 export function formatCliError(error) {
   const message = error?.message || String(error);
@@ -85,7 +91,7 @@ export function formatCliError(error) {
     && (syscall.startsWith('spawn ') || message.startsWith('spawn '));
   if (missingExecutable) {
     const command = error.path || error.cmd || 'executable';
-    return `${command} not found on PATH. Decant model stages require an authenticated Codex CLI (install Codex, then re-run decant doctor).`;
+    return `${command} not found on PATH. Decant needs that CLI to discover models and run stages. ${installHint(command)}`;
   }
   return message;
 }
