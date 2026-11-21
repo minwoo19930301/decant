@@ -3,6 +3,7 @@ import {
   link,
   mkdir,
   mkdtemp,
+  readFile,
   symlink,
   writeFile,
 } from 'node:fs/promises';
@@ -662,4 +663,42 @@ test('review runs one read-only stage and maps the verdict to an exit code', asy
     assert.match(options.prompt, /do the thing/);
     assert.ok(options.outputSchema, 'the reviewer answer must be schema-constrained');
   }
+});
+
+test('review refuses an output path inside the .decant evidence directory', async () => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'decant-review-protect-'));
+  const runDir = path.join(cwd, '.decant', 'runs', '20261017T120000000Z-abcd1234');
+  await mkdir(runDir, { recursive: true });
+  const frozen = path.join(runDir, 'report.html');
+  await writeFile(frozen, '<p>frozen</p>', 'utf8');
+  await symlink(path.join(cwd, '.decant'), path.join(cwd, 'evidence-link'));
+  let stages = 0;
+  const context = () => ({
+    cwd,
+    stdout: captureOutput().stream,
+    configAndCatalogImpl: async () => ({
+      config: DEFAULT_CONFIG,
+      catalog: { roles: { frontier: { model: 'm', effort: 'high' } } },
+      provider: {
+        id: 'fake',
+        runStage: async (options) => {
+          stages += 1;
+          await writeFile(options.outputFile, '{}', 'utf8');
+          return { code: 0 };
+        },
+      },
+    }),
+  });
+  for (const output of [
+    '.decant/runs/20261017T120000000Z-abcd1234/report.html',
+    'evidence-link/runs/20261017T120000000Z-abcd1234/report.html',
+    '.decant/new-file.json',
+  ]) {
+    await assert.rejects(
+      main(['review', 'do the thing', '--output', output], context()),
+      /\.decant/,
+    );
+  }
+  assert.equal(stages, 0);
+  assert.equal(await readFile(frozen, 'utf8'), '<p>frozen</p>');
 });
