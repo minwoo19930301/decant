@@ -77,8 +77,9 @@ Decant does *not* make, so nobody has to discover it the hard way.
   - Muse runs through `muse exec` with its OS sandbox left on; a read-only
     stage also loses the workspace write tools and the shell. Muse Spark 1.3
     advertises five efforts, so `max` and `ultra` snap down to `xhigh`. The
-    catalog is one pinned model entry, not a discovered list. No end-to-end
-    Muse run is recorded in this repository.
+    catalog is one pinned model entry, not a discovered list. The JSONL
+    dialect was checked against the CLI's echo provider; a live stage run on
+    the Meta provider is unverified.
   - `doctor` prints which you have; `run.json` records it.
 - Providers cannot be mixed within one run.
 - Direct HTTP adapters for Anthropic, OpenAI, xAI, or Gemini are not included.
