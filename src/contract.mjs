@@ -87,16 +87,24 @@ export function renderContract(contract) {
  *
  * @returns {{passed: boolean, blocking: string[], gaps: string[], answered: number, total: number}}
  */
+function criterionMatches(check, entry) {
+  if (typeof check?.criterion !== 'string') return false;
+  const text = check.criterion.trim();
+  if (text === entry.id) return true;
+  // Ids are lowercase letters, digits, and hyphens. A prefix match has to stop
+  // at a character that cannot appear in an id, or "auth" consumes "authn: ...".
+  if (!text.startsWith(entry.id)) return false;
+  return /[^a-z0-9-]/i.test(text.charAt(entry.id.length));
+}
+
 export function checkAgainstContract(contract, result) {
   const answers = new Map();
   for (const check of Array.isArray(result?.acceptance_checks) ? result.acceptance_checks : []) {
     // The reviewer is told to put the criterion id in `criterion`; accept an
-    // exact id, or a criterion string that starts with the id, so a reviewer that
-    // writes "single-file: works when opened directly" still resolves.
-    const declared = contract.criteria.find((entry) => (
-      check?.criterion === entry.id
-      || (typeof check?.criterion === 'string' && check.criterion.trim().startsWith(entry.id))
-    ));
+    // exact id, or a criterion string that starts with the id and a boundary,
+    // so a reviewer that writes "single-file: works when opened directly" still
+    // resolves.
+    const declared = contract.criteria.find((entry) => criterionMatches(check, entry));
     if (declared && !answers.has(declared.id)) answers.set(declared.id, check);
   }
 
