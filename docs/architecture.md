@@ -1,7 +1,7 @@
 # Decant architecture
 
 Decant is a thin subprocess harness around an installed coding-agent CLI
-(`codex`, `kiro-cli`, or `grok`), built with zero third-party npm runtime
+(`codex`, `kiro-cli`, `grok`, or `muse`), built with zero third-party npm runtime
 dependencies. It does not replace the agent runtime, provide a second terminal
 interface, or maintain a hidden memory database. A run writes inspectable
 artifacts beneath `.decant/runs/<id>/`.
@@ -17,7 +17,7 @@ provider. `0.2` replaces that with one contract in `src/providers/contract.mjs`:
                outputFile, outputSchema, timeoutMs })
 
 plus `discoverCatalog()`. `src/pipeline.mjs` names no CLI; it resolves whichever
-provider `config.provider` selected. `0.3` adds `grok`. Three implementations ship:
+provider `config.provider` selected. `0.3` adds `grok` and `muse`. Four implementations ship:
 
 - `codex` — native `--output-last-message` and `--output-schema`, kernel
   sandbox, `codex debug models` discovery.
@@ -29,6 +29,11 @@ provider `config.provider` selected. `0.3` adds `grok`. Three implementations sh
   `--json-schema`, and Decant still renames drifted keys client-side. Read-only
   stages request plan mode. The sandbox capability is `fail-open`, so that
   request is not a kernel guarantee. Live Reader-10 through Grok is unverified.
+- `muse` — Muse Code CLI. Native `--output-schema`, with the same client-side
+  key rename. `muse exec` keeps its OS sandbox on, and a read-only stage also
+  loses the workspace write tools and the shell. The catalog is one pinned
+  Muse Spark 1.3 entry; its five efforts mean `max` and `ultra` snap down to
+  `xhigh`. No end-to-end Muse run is recorded in this repository.
 
 The abstraction's job is **not** to make backends look alike. Providers declare
 capabilities (`outputSchema: 'native' | 'prompted'`,
@@ -144,8 +149,9 @@ original machine, toolchain, hooks, credentials, or remote model service.
 
 Scout, architect, reviewer, explainer, and reader stages request the selected
 provider's read-only mode: a kernel sandbox on Codex, a tool allowlist on Kiro,
-and plan mode on Grok. Grok's sandbox is fail-open, so plan mode is a request
-rather than a kernel guarantee. The maker requests workspace-write. Verification
+plan mode on Grok, and disabled write and shell tools inside the OS sandbox on
+Muse. Grok's sandbox is fail-open, so plan mode is a request rather than a
+kernel guarantee. The maker requests workspace-write. Verification
 uses literal argv without a shell, captures bounded output, and terminates the
 spawned process group on POSIX timeout. Users must still choose verification
 executables they trust.

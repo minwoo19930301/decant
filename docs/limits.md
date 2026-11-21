@@ -63,7 +63,7 @@ Decant does *not* make, so nobody has to discover it the hard way.
 
 ## Backends
 
-- Three ship: `codex`, `kiro`, and `grok`. They are not interchangeable.
+- Four ship: `codex`, `kiro`, `grok`, and `muse`. They are not interchangeable.
   - Codex enforces a JSON schema (`--output-schema`) and a kernel sandbox.
   - The Kiro adapter asks for the schema in the prompt and extracts the answer
     from the transcript; it cannot refuse malformed output. Isolation is a tool
@@ -74,6 +74,11 @@ Decant does *not* make, so nobody has to discover it the hard way.
     plan mode is not a kernel guarantee. On Grok 4.7, `max` and `ultra` snap
     down to `xhigh`. Other Grok model ids are not snapped. Live Reader-10
     through Grok is unverified.
+  - Muse runs through `muse exec` with its OS sandbox left on; a read-only
+    stage also loses the workspace write tools and the shell. Muse Spark 1.3
+    advertises five efforts, so `max` and `ultra` snap down to `xhigh`. The
+    catalog is one pinned model entry, not a discovered list. No end-to-end
+    Muse run is recorded in this repository.
   - `doctor` prints which you have; `run.json` records it.
 - Providers cannot be mixed within one run.
 - Direct HTTP adapters for Anthropic, OpenAI, xAI, or Gemini are not included.

@@ -161,7 +161,7 @@ can actually enforce:
 
 ```text
 PASS Node v26.5.0
-INFO provider kiro (Kiro CLI); available: codex, kiro, grok
+INFO provider kiro (Kiro CLI); available: codex, kiro, grok, muse
 INFO sandbox=tool-allowlist outputSchema=prompted
 PASS kiro-cli kiro-cli 2.15.1
 PASS frontier: claude-opus-5/max
