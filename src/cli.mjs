@@ -453,6 +453,13 @@ export function resolveReportOutput(cwd, runDir, requested) {
   if (aliasesProtectedFile(output, manifest)) {
     throw new Error('Refusing to replace the frozen run manifest');
   }
+  // Every other file in the run directory is frozen evidence too. The only
+  // file a regeneration may create there is its own default output.
+  const regenerated = path.join(runDir, 'report.regenerated.html');
+  if (!aliasesProtectedFile(output, regenerated)
+      && pathIsWithin(physicalCandidate(runDir), physicalCandidate(output))) {
+    throw new Error('Report output must be outside the frozen run directory, or the default report.regenerated.html');
+  }
   return output;
 }
 
