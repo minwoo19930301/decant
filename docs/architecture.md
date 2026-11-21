@@ -24,10 +24,11 @@ provider `config.provider` selected. `0.3` adds `grok`. Three implementations sh
 - `kiro` — Kiro CLI. No final-message channel and no schema flag, so the adapter
   fences the answer with sentinels and extracts it from the transcript, and
   carries the JSON schema in the prompt. Isolation is a tool allowlist.
-- `grok` — Grok CLI, pinned to the Grok 4.7 effort menu (`low`, `medium`,
-  `high`, `xhigh`). `max` and `ultra` snap down to `xhigh`. Read-only stages
-  request plan mode. The sandbox capability is `fail-open`, so that request is
-  not a kernel guarantee.
+- `grok` — Grok CLI. Grok 4.7 uses `low`, `medium`, `high`, and `xhigh`;
+  `max` and `ultra` snap down to `xhigh` for that model only. The CLI receives
+  `--json-schema`, and Decant still renames drifted keys client-side. Read-only
+  stages request plan mode. The sandbox capability is `fail-open`, so that
+  request is not a kernel guarantee. Live Reader-10 through Grok is unverified.
 
 The abstraction's job is **not** to make backends look alike. Providers declare
 capabilities (`outputSchema: 'native' | 'prompted'`,
