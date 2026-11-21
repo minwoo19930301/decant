@@ -769,8 +769,11 @@ export async function main(argv = process.argv.slice(2), context = {}) {
       : null;
     const reviewer = catalog.roles[config.effort?.reviewerRole ?? 'frontier'];
     const outputFile = path.resolve(cwd, flags.output ?? 'decant-review.json');
-    if (aliasesProtectedFile(cwd, outputFile)) {
-      throw new Error(`Review output would overwrite a protected file: ${outputFile}`);
+    // The provider writes straight to this path, so it must not be the
+    // workspace itself or anything under .decant, where frozen runs live.
+    if (aliasesProtectedFile(cwd, outputFile)
+        || pathIsWithin(physicalCandidate(path.join(cwd, '.decant')), physicalCandidate(outputFile))) {
+      throw new Error(`Review output would overwrite a protected path: ${outputFile} (not allowed inside .decant)`);
     }
     stdout.write(
       `Reviewing ${cwd}\n`
