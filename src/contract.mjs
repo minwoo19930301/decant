@@ -78,6 +78,16 @@ export function renderContract(contract) {
     .join('\n');
 }
 
+function criterionMatches(check, entry) {
+  if (typeof check?.criterion !== 'string') return false;
+  const text = check.criterion.trim();
+  if (text === entry.id) return true;
+  if (!text.startsWith(entry.id)) return false;
+  // Only a space or colon separates an id from a reviewer's note. "_" and "."
+  // are not id characters, but they still continue the token ("auth_token").
+  return /[\s:]/.test(text.charAt(entry.id.length));
+}
+
 /**
  * Check a reviewer result against the declared contract.
  *
@@ -87,16 +97,6 @@ export function renderContract(contract) {
  *
  * @returns {{passed: boolean, blocking: string[], gaps: string[], answered: number, total: number}}
  */
-function criterionMatches(check, entry) {
-  if (typeof check?.criterion !== 'string') return false;
-  const text = check.criterion.trim();
-  if (text === entry.id) return true;
-  // Ids are lowercase letters, digits, and hyphens. A prefix match has to stop
-  // at a character that cannot appear in an id, or "auth" consumes "authn: ...".
-  if (!text.startsWith(entry.id)) return false;
-  return /[^a-z0-9-]/i.test(text.charAt(entry.id.length));
-}
-
 export function checkAgainstContract(contract, result) {
   const answers = new Map();
   for (const check of Array.isArray(result?.acceptance_checks) ? result.acceptance_checks : []) {

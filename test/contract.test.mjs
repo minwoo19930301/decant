@@ -138,6 +138,8 @@ test('a shorter id does not consume a longer id that shares its prefix', () => {
   });
   const outcome = checkAgainstContract(prefixed, review([
     { criterion: 'authn: token format documented', passed: true, evidence: 'e' },
+    { criterion: 'auth_token: session cookie set', passed: true, evidence: 'e' },
+    { criterion: 'auth.v2: header checked', passed: true, evidence: 'e' },
     { criterion: 'opens-directly: no build step', passed: false, evidence: 'e' },
   ]));
   assert.deepEqual(outcome.blocking, ['auth: no answer from the reviewer']);
