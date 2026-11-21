@@ -28,7 +28,7 @@ from the harnesses that already exist; carry them into whatever model you run.
 
 ## See it decide
 
-Real output, same machine, two tasks. Nothing ran — this is `route`, the preview:
+Real output, same machine, two tasks, trimmed to the four decision stages. Nothing ran — this is `route`, the preview. The full command also prints the lane, the explainer and reader rows, and a cost estimate:
 
 ```console
 $ decant route "fix a typo in the README"
