@@ -79,7 +79,7 @@ export function nodeVersionSupported(version = process.versions.node) {
 
 function installHint(command) {
   const provider = Object.values(PROVIDERS).find((item) => item.executable === command);
-  if (provider) return `Install the ${provider.displayName}, then re-run decant doctor.`;
+  if (provider) return `Install ${provider.displayName}, then re-run decant doctor.`;
   return `Install ${command}, then re-run decant doctor.`;
 }
 

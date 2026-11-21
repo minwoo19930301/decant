@@ -54,8 +54,8 @@ test('formatCliError turns missing executables into actionable PATH guidance', (
     syscall: 'spawn codex',
   });
   assert.match(formatCliError(missing), /codex not found on PATH/);
-  assert.match(formatCliError(missing), /Install the Codex CLI/);
-  for (const [command, hint] of [['kiro-cli', /Install the Kiro CLI/], ['grok', /Install the Grok CLI/]]) {
+  assert.match(formatCliError(missing), /Install Codex CLI, then re-run decant doctor/);
+  for (const [command, hint] of [['kiro-cli', /Install Kiro CLI/], ['grok', /Install Grok CLI/], ['muse', /Install Muse Code, then/]]) {
     const missingProvider = Object.assign(new Error(`spawn ${command} ENOENT`), {
       code: 'ENOENT',
       path: command,
