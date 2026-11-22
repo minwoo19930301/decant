@@ -1249,7 +1249,7 @@ export async function runPipeline({
       const refreshed = await readQuestions({ cwd: root, runId: id });
       if (!refreshed) throw new Error('the active question queue disappeared before its dependency check');
       const definitions = (state) => JSON.stringify(state.questions.map((question) => (
-        [question.id, question.title, question.options ?? [], question.required]
+        [question.id, question.title, question.options ?? [], question.required, question.assumption ?? null]
       )));
       if (definitions(refreshed) !== definitions(questionState)) {
         throw new Error('Question definitions changed during the run; refusing to continue with altered dependencies');

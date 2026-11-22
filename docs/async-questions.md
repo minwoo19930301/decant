@@ -24,13 +24,15 @@ question dependency gate. Other routing, permission, and verification rules
 still apply. Dry runs do not execute scout or post questions.
 
 The scout may return up to three structured questions with an ID, title,
-optional choices, and an explicit `required` boolean. Structured questions take
+optional choices, an explicit `required` boolean, and an optional
+`assumption` string with a `reversible` boolean (`null` when unused). Structured questions take
 precedence over legacy `open_questions` strings, including an empty structured
 array. Legacy output contributes at most its first three questions, all optional.
 The fast lane skips the scout model stage, so it generates no question queue.
 The native output schema requires `questions` (use `[]` for none) and each
-question's `options` (use `null` for no suggested choices). The queue normalizes
-null choices to an omitted field. Legacy artifacts may omit both fields.
+question's `options`, `assumption` and `reversible` (use `null` for none). The
+queue normalizes null values to omitted fields. Legacy artifacts may omit all of
+them.
 
 Questions are saved and printed before the read-only architect stage. Decant
 refreshes answers immediately before the maker:
@@ -42,9 +44,39 @@ refreshes answers immediately before the maker:
 - Optional questions allow work to continue. Stage prompts require concrete
   assumptions and disclosure of unresolved questions.
 
-There are no automatic answers, selected defaults, or timeout consent. Normal
+Decant never writes an assumption itself. It does not pick the first suggested
+choice and does not supply a fixed sentence. The only assumption that exists is
+one the scout model wrote for a question it also marked `reversible: true`,
+and only when that question is not `required`. A required question stays a
+blocking prerequisite even if the model supplied an assumption; the assumption
+is dropped. A question without a model-written assumption behaves exactly as
+before: it is listed as pending, the stage prompt asks the stage to state its own
+assumptions, and nothing is recorded as a default.
+
+A recorded assumption is shown by `decant questions` as an assumption, passed to
+the maker, reviewer and explainer prompts as a reversible working assumption to
+name in their output, and kept in the question store. It is never recorded as
+an answer, the question stays pending, and silence is not consent. There are no
+automatic answers or timeout consent. A question store written by an earlier
+version has no assumption, and reading it does not add one. Normal
 invocation budgets and advisor policy still apply; an unfunded required advisor
 can stop the run before it reaches the question gate.
+
+When an answer arrives for a question that has a model-written assumption,
+`decant questions` and `decant answer` compare them. Both are trimmed,
+lower-cased and have runs of whitespace collapsed; for an option question,
+each side is first mapped to the option it names, so the chosen option is what is
+compared. Wording or spacing differences alone do not count as a change. If the
+answer still differs, Decant reads the run's `events.jsonl` and lists the stages
+that started after the question was recorded and before the answer arrived,
+limited to maker, reviewer and explainer, the stages that act on an assumption.
+Scout and architect only plan read-only, and a stage that starts after the answer
+reads the answer instead. Only then does it print the `decant resume` command.
+An answer that arrives before maker starts, or while the run is waiting,
+affects no stage, so nothing is listed and no resume is suggested. The list is
+computed when the command runs from the run record and is not stored in the
+queue. `--json` adds an `assumptionReview` array only when such a comparison
+exists. Resume still starts a new child run; it does not edit the parent.
 
 Answers received before maker starts can inform implementation. Later answers
 can inform the subsequent reviewer and explainer when those stages refresh

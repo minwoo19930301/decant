@@ -7,7 +7,7 @@ import { promisify } from 'node:util';
 import test from 'node:test';
 import { DEFAULT_CONFIG } from '../src/config.mjs';
 import { runPipeline, verifyFrozenRun } from '../src/pipeline.mjs';
-import { readQuestions } from '../src/questions.mjs';
+import { assumptionReview, readQuestions } from '../src/questions.mjs';
 import { routeTask } from '../src/router.mjs';
 import { readJson, readText, writeText } from '../src/utils.mjs';
 
@@ -254,4 +254,39 @@ test('structured questions fail closed when more than three questions or missing
     await assert.rejects(readText(path.join(cwd, '.decant/workspace.lock')), { code: 'ENOENT' });
     assert.equal(await readQuestions({ cwd, runId: id }), null);
   }
+});
+
+test('a model-written assumption reaches the maker, and a late diverging answer is traced to the stages that ran', async (t) => {
+  const cwd = await workspace(t);
+  const fake = backend(scoutResult({ questions: [
+    { id: 'style', title: 'Which label style?', options: ['Short', 'Verbose'], required: false, assumption: 'Short', reversible: true },
+    { id: 'other', title: 'Any naming preference?', options: ['a', 'b'], required: false, assumption: null, reversible: null },
+  ] }), async (stage, options) => {
+    if (stage === 'maker.md') {
+      assert.match(options.prompt, /model-written assumption/);
+      assert.match(options.prompt, /"assumption":"Short"/);
+      await answerInAnotherProcess(cwd, 'style', 'Verbose');
+    }
+  });
+  const result = await runPipeline(runOptions(cwd, fake));
+  const state = await readQuestions({ cwd, runId: id });
+  assert.equal(state.questions[0].assumption, 'Short');
+  assert.equal('assumption' in state.questions[1], false, 'options[0] is never chosen for the model');
+  const events = (await readText(path.join(result.runDir, 'events.jsonl'))).trim().split('\n').map(JSON.parse);
+  const [item] = assumptionReview(state.questions, events);
+  assert.equal(item.diverged, true);
+  assert.deepEqual(item.affectedStages, ['maker']);
+  await verifyFrozenRun(result.runDir);
+});
+
+test('a question without a model assumption gets no assumption text in any prompt', async (t) => {
+  const cwd = await workspace(t);
+  const fake = backend(scoutResult({ questions: [
+    { id: 'style', title: 'What label do you prefer?', options: ['Short', 'Verbose'], required: false },
+  ] }));
+  await runPipeline(runOptions(cwd, fake));
+  assert.equal((await readQuestions({ cwd, runId: id })).questions[0].assumption, undefined);
+  const later = fake.calls.filter((call) => path.basename(call.outputFile) !== 'scout.json');
+  assert.ok(later.length > 0);
+  assert.ok(later.every((call) => !/model-written assumption|"assumption"/.test(call.prompt)));
 });

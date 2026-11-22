@@ -32,12 +32,14 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "title", "options", "required"],
+        "required": ["id", "title", "options", "required", "assumption", "reversible"],
         "properties": {
           "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$" },
           "title": { "type": "string", "minLength": 1, "maxLength": 1000 },
           "options": { "type": ["array", "null"], "minItems": 1, "maxItems": 10, "items": { "type": "string", "minLength": 1, "maxLength": 500 } },
-          "required": { "type": "boolean" }
+          "required": { "type": "boolean" },
+          "assumption": { "type": ["string", "null"], "maxLength": 1000 },
+          "reversible": { "type": ["boolean", "null"] }
         }
       }
     }
