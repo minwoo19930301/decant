@@ -28,7 +28,7 @@ from the harnesses that already exist; carry them into whatever model you run.
 
 ## See it decide
 
-Real output, same machine, two tasks. Nothing ran — this is `route`, the preview:
+Real output, same machine, two tasks, trimmed to the four decision stages. Nothing ran — this is `route`, the preview. The full command also prints the lane, the explainer and reader rows, and a cost estimate:
 
 ```console
 $ decant route "fix a typo in the README"
@@ -161,12 +161,13 @@ can actually enforce:
 
 ```text
 PASS Node v26.5.0
-INFO provider kiro (Kiro CLI); available: codex, kiro
+INFO provider kiro (Kiro CLI); available: codex, kiro, grok, muse
 INFO sandbox=tool-allowlist outputSchema=prompted
 PASS kiro-cli kiro-cli 2.15.1
 PASS frontier: claude-opus-5/max
 PASS balanced: claude-sonnet-5/medium
 PASS economy: claude-haiku-4.5/low
+INFO Jev jev-1.13.0: TYPESAFE_API_KEY missing; opt in with --jev
 ```
 
 ## How do I…
@@ -455,7 +456,7 @@ Three that will actually change your mind:
   linter. The hash check spots a changed file. A failed stage ends the run with
   no rollback.
 
-The other dozen — what the labels mean, why the two backends differ, what replay
+The other dozen — what the labels mean, why the backends differ, what replay
 does and doesn't guarantee, why the report is still Korean — are in
 [docs/limits.md](docs/limits.md), one page, written for the same reason.
 

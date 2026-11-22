@@ -3,6 +3,7 @@ import {
   link,
   mkdir,
   mkdtemp,
+  readFile,
   symlink,
   writeFile,
 } from 'node:fs/promises';
@@ -53,7 +54,23 @@ test('formatCliError turns missing executables into actionable PATH guidance', (
     syscall: 'spawn codex',
   });
   assert.match(formatCliError(missing), /codex not found on PATH/);
-  assert.match(formatCliError(missing), /authenticated Codex CLI/);
+  assert.match(formatCliError(missing), /Install Codex CLI, then re-run decant doctor/);
+  for (const [command, hint] of [['kiro-cli', /Install Kiro CLI/], ['grok', /Install Grok CLI/], ['muse', /Install Muse Code, then/]]) {
+    const missingProvider = Object.assign(new Error(`spawn ${command} ENOENT`), {
+      code: 'ENOENT',
+      path: command,
+      syscall: `spawn ${command}`,
+    });
+    assert.match(formatCliError(missingProvider), new RegExp(`${command} not found on PATH`));
+    assert.match(formatCliError(missingProvider), hint);
+    assert.doesNotMatch(formatCliError(missingProvider), /Codex CLI/);
+  }
+  const unknown = Object.assign(new Error('spawn custom-agent ENOENT'), {
+    code: 'ENOENT',
+    path: 'custom-agent',
+    syscall: 'spawn custom-agent',
+  });
+  assert.match(formatCliError(unknown), /Install custom-agent, then re-run decant doctor/);
   const missingFile = Object.assign(
     new Error("ENOENT: no such file or directory, open '/tmp/run.json'"),
     { code: 'ENOENT', path: '/tmp/run.json', syscall: 'open' },
@@ -166,6 +183,38 @@ test('doctor --json stays parseable when Codex spawn fails', async () => {
   assert.equal(payload.error, undefined);
 });
 
+test('invalid route and run flags fail before catalog discovery', async () => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'decant-flags-'));
+  const output = captureOutput();
+  let discovered = false;
+  const context = {
+    cwd,
+    stdout: output.stream,
+    configAndCatalogImpl: async () => {
+      discovered = true;
+      throw new Error('catalog should not be contacted');
+    },
+  };
+
+  await assert.rejects(
+    main(['route', 'fix a typo', '--lane', 'turbo'], context),
+    /lane must be one of: auto, fast, full/,
+  );
+  await assert.rejects(
+    main(['route', 'fix a typo', '--lane', 'fast'], context),
+    /fast lane requires timeBudgetMinutes/,
+  );
+  await assert.rejects(
+    main(['run', 'fix a typo', '--budget-calls', '2x'], context),
+    /Model-call budget must be an integer: 2x/,
+  );
+  await assert.rejects(
+    main(['run', 'fix a typo', '--question-mode', 'auto'], context),
+    /question-mode must be async or off/,
+  );
+  assert.equal(discovered, false);
+});
+
 test('strict parser keeps boolean flags separate from following positional arguments', () => {
   assert.deepEqual(parseCommandLine(['route', '--json', 'fix typo']), {
     command: 'route',
@@ -222,6 +271,18 @@ test('strict parser rejects unknown, duplicate, missing-value, and boolean-value
   assert.throws(
     () => parseCommandLine(['inspect', 'first', 'second']),
     /inspect accepts at most 1 positional argument/,
+  );
+  assert.throws(
+    () => parseCommandLine(['init', 'extra']),
+    /init does not accept positional arguments/,
+  );
+  assert.throws(
+    () => parseCommandLine(['answer', 'run-id']),
+    /answer requires a run id, a question id, and an answer/,
+  );
+  assert.throws(
+    () => parseCommandLine(['review']),
+    /review requires a task/,
   );
 });
 
@@ -602,4 +663,67 @@ test('review runs one read-only stage and maps the verdict to an exit code', asy
     assert.match(options.prompt, /do the thing/);
     assert.ok(options.outputSchema, 'the reviewer answer must be schema-constrained');
   }
+});
+
+test('review refuses an output path inside the .decant evidence directory', async () => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'decant-review-protect-'));
+  const runDir = path.join(cwd, '.decant', 'runs', '20261017T120000000Z-abcd1234');
+  await mkdir(runDir, { recursive: true });
+  const frozen = path.join(runDir, 'report.html');
+  await writeFile(frozen, '<p>frozen</p>', 'utf8');
+  await symlink(path.join(cwd, '.decant'), path.join(cwd, 'evidence-link'));
+  let stages = 0;
+  const context = () => ({
+    cwd,
+    stdout: captureOutput().stream,
+    configAndCatalogImpl: async () => ({
+      config: DEFAULT_CONFIG,
+      catalog: { roles: { frontier: { model: 'm', effort: 'high' } } },
+      provider: {
+        id: 'fake',
+        runStage: async (options) => {
+          stages += 1;
+          await writeFile(options.outputFile, '{}', 'utf8');
+          return { code: 0 };
+        },
+      },
+    }),
+  });
+  for (const output of [
+    '.decant/runs/20261017T120000000Z-abcd1234/report.html',
+    'evidence-link/runs/20261017T120000000Z-abcd1234/report.html',
+    '.decant/new-file.json',
+  ]) {
+    await assert.rejects(
+      main(['review', 'do the thing', '--output', output], context()),
+      /\.decant/,
+    );
+  }
+  assert.equal(stages, 0);
+  assert.equal(await readFile(frozen, 'utf8'), '<p>frozen</p>');
+});
+
+test('report output cannot overwrite any other frozen artifact in the run directory', async () => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), 'decant-report-artifact-'));
+  const runDir = path.join(cwd, '.decant', 'runs', '20260713T000000123Z-1234abcd');
+  await mkdir(runDir, { recursive: true });
+  await writeText(path.join(runDir, 'scout.json'), '{}');
+  const alias = path.join(cwd, 'alias');
+  await symlink(runDir, alias);
+
+  for (const output of [
+    path.join(runDir, 'scout.json'),
+    path.join(runDir, 'readers.json'),
+    path.join(alias, 'scout.json'),
+  ]) {
+    assert.throws(() => resolveReportOutput(cwd, runDir, output), /frozen run directory/);
+  }
+  assert.equal(
+    resolveReportOutput(cwd, runDir, path.join(runDir, 'report.regenerated.html')),
+    path.join(runDir, 'report.regenerated.html'),
+  );
+  assert.equal(
+    resolveReportOutput(cwd, runDir, 'exports/report.html'),
+    path.join(cwd, 'exports', 'report.html'),
+  );
 });

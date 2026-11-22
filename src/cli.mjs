@@ -19,10 +19,10 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { discoverCatalog } from './catalog.mjs';
-import { DEFAULT_PROVIDER, PROVIDER_IDS, resolveProvider } from './providers/index.mjs';
+import { DEFAULT_PROVIDER, PROVIDER_IDS, PROVIDERS, resolveProvider } from './providers/index.mjs';
 import { CONFIG_FILENAME, DEFAULT_CONFIG, loadConfig } from './config.mjs';
 import { spawnCapture } from './executor.mjs';
-import { routeTask, routeWithJudgment } from './router.mjs';
+import { routeTask, routeWithJudgment, validateRoutingFlags } from './router.mjs';
 import { judgeTask } from './jev.mjs';
 import { readQuestions, answerQuestion, questionSummary } from './questions.mjs';
 import { assessReviewer, REVIEWER_SCHEMA } from './pipeline.mjs';
@@ -77,6 +77,12 @@ export function nodeVersionSupported(version = process.versions.node) {
   return Number.isInteger(major) && major >= 20;
 }
 
+function installHint(command) {
+  const provider = Object.values(PROVIDERS).find((item) => item.executable === command);
+  if (provider) return `Install ${provider.displayName}, then re-run decant doctor.`;
+  return `Install ${command}, then re-run decant doctor.`;
+}
+
 /** Human-readable CLI error for missing executables and other failures. */
 export function formatCliError(error) {
   const message = error?.message || String(error);
@@ -85,7 +91,7 @@ export function formatCliError(error) {
     && (syscall.startsWith('spawn ') || message.startsWith('spawn '));
   if (missingExecutable) {
     const command = error.path || error.cmd || 'executable';
-    return `${command} not found on PATH. Decant model stages require an authenticated Codex CLI (install Codex, then re-run decant doctor).`;
+    return `${command} not found on PATH. Decant needs that CLI to discover models and run stages. ${installHint(command)}`;
   }
   return message;
 }
@@ -175,6 +181,20 @@ const COMMAND_SPECS = Object.freeze({
   },
 });
 
+function missingPositionalMessage(command) {
+  if (command === 'route' || command === 'run' || command === 'review') {
+    return `${command} requires a task`;
+  }
+  if (command === 'answer') return 'answer requires a run id, a question id, and an answer';
+  return `${command} requires an argument`;
+}
+
+function extraPositionalMessage(command, maximum) {
+  if (maximum === 0) return `${command} does not accept positional arguments`;
+  const noun = maximum === 1 ? 'argument' : 'arguments';
+  return `${command} accepts at most ${maximum} positional ${noun}`;
+}
+
 /** Parse one command against its own option allowlist. */
 export function parseCommandLine(argv) {
   if (!Array.isArray(argv)) throw new TypeError('CLI arguments must be an array');
@@ -239,12 +259,31 @@ export function parseCommandLine(argv) {
   }
 
   if (!flags.help && positionals.length < spec.minPositionals) {
-    throw new Error(`${command} requires ${command === 'route' || command === 'run' ? 'a task' : 'an argument'}`);
+    throw new Error(missingPositionalMessage(command));
   }
   if (!flags.help && positionals.length > spec.maxPositionals) {
-    throw new Error(`${command} accepts at most ${spec.maxPositionals} positional argument`);
+    throw new Error(extraPositionalMessage(command, spec.maxPositionals));
   }
   return { command, positionals, flags };
+}
+
+function parseModelCallBudget(raw) {
+  const budget = typeof raw === 'number' ? raw : Number(raw);
+  if (!Number.isInteger(budget)) throw new Error(`Model-call budget must be an integer: ${raw}`);
+  if (budget < 1) throw new Error(`Model-call budget must be positive: ${raw}`);
+  return budget;
+}
+
+function assertRunnableFlags(flags) {
+  if (flags.questionMode !== undefined && !['async', 'off'].includes(flags.questionMode)) {
+    throw new Error('question-mode must be async or off');
+  }
+  if (flags.budgetCalls !== undefined) parseModelCallBudget(flags.budgetCalls);
+  validateRoutingFlags({
+    lane: flags.lane,
+    timeBudgetMinutes: flags.timeBudgetMinutes,
+    firstArtifact: flags.firstArtifact,
+  });
 }
 
 function routeOptions(config, flags = {}) {
@@ -278,9 +317,7 @@ export async function configAndCatalog(cwd, {
 
 export function validateRunBudget(plan, config, requested) {
   const raw = requested ?? config.limits?.maxModelCalls ?? 30;
-  const budget = typeof raw === 'number' ? raw : Number(raw);
-  if (!Number.isInteger(budget)) throw new Error(`Model-call budget must be an integer: ${raw}`);
-  if (budget < 1) throw new Error(`Model-call budget must be positive: ${raw}`);
+  const budget = parseModelCallBudget(raw);
   if (budget < plan.callEstimate.minimum) {
     throw new Error(`Model-call budget ${budget} is below the minimum ${plan.callEstimate.minimum}`);
   }
@@ -415,6 +452,13 @@ export function resolveReportOutput(cwd, runDir, requested) {
   }
   if (aliasesProtectedFile(output, manifest)) {
     throw new Error('Refusing to replace the frozen run manifest');
+  }
+  // Every other file in the run directory is frozen evidence too. The only
+  // file a regeneration may create there is its own default output.
+  const regenerated = path.join(runDir, 'report.regenerated.html');
+  if (!aliasesProtectedFile(output, regenerated)
+      && pathIsWithin(physicalCandidate(runDir), physicalCandidate(output))) {
+    throw new Error('Report output must be outside the frozen run directory, or the default report.regenerated.html');
   }
   return output;
 }
@@ -621,6 +665,7 @@ export async function main(argv = process.argv.slice(2), context = {}) {
   }
 
   if (command === 'route' || command === 'run' || command === 'resume') {
+    assertRunnableFlags(flags);
     let task = positionals.join(' ').trim();
     let questionContext;
     const pipeline = await pipelineModule(context.pipeline);
@@ -731,8 +776,11 @@ export async function main(argv = process.argv.slice(2), context = {}) {
       : null;
     const reviewer = catalog.roles[config.effort?.reviewerRole ?? 'frontier'];
     const outputFile = path.resolve(cwd, flags.output ?? 'decant-review.json');
-    if (aliasesProtectedFile(cwd, outputFile)) {
-      throw new Error(`Review output would overwrite a protected file: ${outputFile}`);
+    // The provider writes straight to this path, so it must not be the
+    // workspace itself or anything under .decant, where frozen runs live.
+    if (aliasesProtectedFile(cwd, outputFile)
+        || pathIsWithin(physicalCandidate(path.join(cwd, '.decant')), physicalCandidate(outputFile))) {
+      throw new Error(`Review output would overwrite a protected path: ${outputFile} (not allowed inside .decant)`);
     }
     stdout.write(
       `Reviewing ${cwd}\n`

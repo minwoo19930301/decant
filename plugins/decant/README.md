@@ -1,6 +1,6 @@
 # Decant Plugin
 
-The plugin package id is `decant` and Skill ids are `decant-*` in version 0.2.
+The plugin package id is `decant` and Skill ids are `decant-*`.
 The npm package is `decant` and the installed CLI is `decant`.
 
 This preview bundles eight focused, on-demand skills:

@@ -108,3 +108,21 @@ test("discoverCatalog injects execution and passes the configured invocation", a
   assert.equal(catalog.roles.frontier.model, "gpt-sol");
 });
 
+
+test("catalog errors do not name a provider the list may not have come from", () => {
+  // Kiro, Grok and Muse build their catalogs through the same parser, so a
+  // message that says "Codex" would blame the wrong CLI.
+  const messages = [];
+  for (const input of [[], {}, "{not json"]) {
+    try {
+      buildCatalog(input);
+    } catch (error) {
+      messages.push(error.message);
+    }
+  }
+  assert.equal(messages.length, 3);
+  for (const message of messages) {
+    assert.match(message, /^Model catalog /);
+    assert.doesNotMatch(message, /Codex/);
+  }
+});

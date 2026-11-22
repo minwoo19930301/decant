@@ -48,7 +48,7 @@ function asJson(value) {
   try {
     return JSON.parse(value);
   } catch (error) {
-    throw new SyntaxError(`Codex model catalog is not valid JSON: ${error.message}`, { cause: error });
+    throw new SyntaxError(`Model catalog is not valid JSON: ${error.message}`, { cause: error });
   }
 }
 
@@ -57,7 +57,7 @@ function extractModels(raw) {
   if (Array.isArray(parsed)) return parsed;
   if (Array.isArray(parsed?.models)) return parsed.models;
   if (Array.isArray(parsed?.data)) return parsed.data;
-  throw new TypeError("Codex model catalog must be an array or contain a models/data array");
+  throw new TypeError("Model catalog must be an array or contain a models/data array");
 }
 
 function isVisible(model) {
@@ -151,7 +151,7 @@ function roleSelection(role, model, source, requestedEffort) {
 export function buildCatalog(raw, { overrides = {} } = {}) {
   const models = parseModelCatalog(raw);
   const visibleModels = models.filter((model) => model.visible);
-  if (visibleModels.length === 0) throw new Error("Codex model catalog has no visible models");
+  if (visibleModels.length === 0) throw new Error("Model catalog has no visible models");
 
   const roles = {};
   const unused = new Set(visibleModels.map((model) => model.id));
