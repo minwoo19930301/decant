@@ -571,3 +571,13 @@ test('muse discovery pins Muse Spark 1.3 and a stage writes the streamed text', 
   assert.ok(seen.args.includes('--disable-write'));
   assert.equal(await readFile(outputFile, 'utf8'), 'pong\n');
 });
+
+test('public API surfaces stay disconnected even when a key is present', async () => {
+  const { describeApiSurfaces, API_SURFACES } = await import('../src/providers/surfaces.mjs');
+  const env = { OPENROUTER_API_KEY: 'present', GROQ_API_KEY: 'present', GEMINI_API_KEY: 'present' };
+  const surfaces = describeApiSurfaces(env);
+  assert.deepEqual(surfaces.map((item) => item.id), API_SURFACES.map((item) => item.id));
+  assert.ok(surfaces.every((item) => item.connected === false && item.keyPresent === true));
+  assert.equal(surfaces.find((item) => item.id === 'groq').note.includes('not the Grok CLI'), true);
+  assert.ok(surfaces.every((item) => !('examples' in item)), 'no unverified model ids are listed');
+});
