@@ -87,6 +87,13 @@ Decant does *not* make, so nobody has to discover it the hard way.
   approval behaviour, search, and a tool-call loop.
 - The provider set is closed in code. Config selects one by id but cannot name an
   executable, so a checked-in project file cannot decide which binary runs.
+- Some HTTP APIs (OpenRouter, Groq, the Gemini API) are named by `decant doctor`
+  as not connected, with their conventional endpoint and whether the usual key
+  variable is set. A key in the environment does not change that, and Decant
+  sends nothing to them. No model id for these hosts is verified here, so none
+  is listed. Groq is not the Grok CLI.
+- Other agent products (Factory Droid, Amp, Hermes Agent) are not connected and
+  not supported. Nothing here is a claim about what they do.
 
 ## Execution
 
