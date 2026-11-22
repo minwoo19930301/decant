@@ -72,6 +72,20 @@ export function normalizeQuestions(input, max = MAX_QUESTIONS) {
         throw new TypeError(`Question ${value.id} options must be distinct`);
       }
     }
+    // The assumption is written by the model, never by Decant. It is kept only
+    // for a non-required question the model marked reversible; a required
+    // question stays a blocking prerequisite and an unmarked assumption is
+    // dropped. Nothing is derived from options or filled in when absent.
+    for (const [key, type] of [['assumption', 'string'], ['reversible', 'boolean']]) {
+      if (value[key] !== undefined && value[key] !== null && typeof value[key] !== type) {
+        throw new TypeError(`Question ${value.id} ${key} must be a ${type} or null`);
+      }
+    }
+    if (question.required !== true && value.reversible === true
+      && typeof value.assumption === 'string' && value.assumption.trim()) {
+      question.assumption = text(value.assumption, `Question ${value.id} assumption`, 1000);
+      question.reversible = true;
+    }
     return question;
   });
 }
@@ -311,4 +325,63 @@ export async function answerQuestion({ cwd, runId, questionId, answer }) {
         : entry),
     };
   });
+}
+
+/** Case-fold, trim and collapse whitespace so wording noise is not a change. */
+export function normalizeAnswerText(value) {
+  return String(value ?? '').normalize('NFC').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+/**
+ * Whether an answer differs from the recorded assumption. Both sides are
+ * normalised; for an option question each side is first resolved to the option
+ * it names, so the chosen option is what gets compared. A question with no
+ * assumption never diverges.
+ */
+export function answerDiverges(question, answer) {
+  if (typeof question?.assumption !== 'string') return false;
+  const options = new Map((question.options ?? []).map((option) => [normalizeAnswerText(option), option]));
+  const resolve = (value) => {
+    const key = normalizeAnswerText(value);
+    return options.has(key) ? normalizeAnswerText(options.get(key)) : key;
+  };
+  return resolve(answer) !== resolve(question.assumption);
+}
+
+// Only these stages act on the assumption. Scout and architect plan read-only,
+// and a stage that starts after the answer reads the answer instead.
+const ASSUMPTION_STAGES = new Set(['maker', 'reviewer', 'explainer']);
+
+/**
+ * Stages that started after the assumption was recorded and before the answer
+ * arrived, taken from the run's event log. Empty when the answer came first,
+ * when the run was waiting, or when the log is unavailable.
+ */
+export function stagesUsingAssumption(question, events) {
+  const from = Date.parse(question?.askedAt);
+  const until = Date.parse(question?.answeredAt);
+  if (!Number.isFinite(from) || !Number.isFinite(until) || !Array.isArray(events)) return [];
+  const stages = [];
+  for (const event of events) {
+    if (event?.type !== 'stage.started' || !ASSUMPTION_STAGES.has(event.stage)) continue;
+    const at = Date.parse(event.at);
+    if (Number.isFinite(at) && at >= from && at < until && !stages.includes(event.stage)) stages.push(event.stage);
+  }
+  return stages;
+}
+
+/** One entry per answered question that carries a model-written assumption. */
+export function assumptionReview(questions, events) {
+  return (questions ?? [])
+    .filter((question) => question.status === 'answered' && typeof question.assumption === 'string')
+    .map((question) => {
+      const diverged = answerDiverges(question, question.answer);
+      return {
+        id: question.id,
+        assumption: question.assumption,
+        answer: question.answer,
+        diverged,
+        affectedStages: diverged ? stagesUsingAssumption(question, events) : [],
+      };
+    });
 }

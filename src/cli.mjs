@@ -25,7 +25,7 @@ import { CONFIG_FILENAME, DEFAULT_CONFIG, loadConfig } from './config.mjs';
 import { spawnCapture } from './executor.mjs';
 import { routeTask, routeWithJudgment, validateRoutingFlags } from './router.mjs';
 import { judgeTask } from './jev.mjs';
-import { readQuestions, answerQuestion, questionSummary } from './questions.mjs';
+import { readQuestions, answerQuestion, questionSummary, assumptionReview } from './questions.mjs';
 import { assessReviewer, REVIEWER_SCHEMA } from './pipeline.mjs';
 import { standaloneReviewerPrompt } from './prompts.mjs';
 import { checkAgainstContract, loadContract, renderContract } from './contract.mjs';
@@ -519,12 +519,38 @@ async function pipelineModule(injected) {
   return injected ?? import('./pipeline.mjs');
 }
 
-function printQuestions(state, stdout) {
+async function readRunEvents(runDir) {
+  let raw;
+  try {
+    raw = await readFile(path.join(runDir, 'events.jsonl'), 'utf8');
+  } catch {
+    return [];
+  }
+  const events = [];
+  for (const line of raw.split('\n')) {
+    if (!line.trim()) continue;
+    try { events.push(JSON.parse(line)); } catch { /* a torn last line is ignored */ }
+  }
+  return events;
+}
+
+function printQuestions(state, stdout, review = []) {
   if (!state) { stdout.write('No questions for this run.\n'); return; }
   for (const question of state.questions) {
     stdout.write(`[${question.status}${question.required ? '; required before edits' : '; optional'}] ${question.id}: ${question.title}\n`);
     if (question.options?.length) stdout.write(`  Options: ${question.options.join(' / ')} (free text accepted)\n`);
-    if (question.status === 'answered') stdout.write(`  Answer: ${question.answer}\n`);
+    if (typeof question.assumption === 'string' && question.status !== 'answered') {
+      stdout.write(`  Assumption (model-written, reversible, not an answer): ${question.assumption}\n`);
+    }
+    if (question.status === 'answered') {
+      stdout.write(`  Answer: ${question.answer}\n`);
+      const item = review.find((entry) => entry.id === question.id);
+      if (item?.diverged && item.affectedStages.length > 0) {
+        stdout.write(`  Differs from assumption: ${item.assumption}\n`);
+        stdout.write(`  Affected stages: ${item.affectedStages.join(', ')}\n`);
+        stdout.write(`  Rerun with this answer: decant resume ${state.runId}\n`);
+      }
+    }
   }
   if (state.questions.some(question => question.status === 'pending')) {
     stdout.write(`Answer from another terminal: decant answer ${state.runId} <question-id> "<answer>"\n`);
@@ -556,8 +582,9 @@ export async function main(argv = process.argv.slice(2), context = {}) {
     const state = command === 'answer'
       ? await answerQuestion({ cwd, runId, questionId: positionals[1], answer: positionals.slice(2).join(' ') })
       : await readQuestions({ cwd, runId });
-    if (flags.json) stdout.write(`${JSON.stringify(state, null, 2)}\n`);
-    else printQuestions(state, stdout);
+    const review = state ? assumptionReview(state.questions, await readRunEvents(runDir)) : [];
+    if (flags.json) stdout.write(`${JSON.stringify(review.length ? { ...state, assumptionReview: review } : state, null, 2)}\n`);
+    else printQuestions(state, stdout, review);
     return 0;
   }
 
